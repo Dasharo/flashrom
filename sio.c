@@ -16,7 +16,7 @@
 #if defined(__i386__) || defined(__x86_64__)
 
 #include "programmer.h"
-#include "hwaccess.h"
+#include "hwaccess_x86_io.h"
 
 void probe_superio(void)
 {
