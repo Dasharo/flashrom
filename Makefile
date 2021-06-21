@@ -451,6 +451,9 @@ CONFIG_ATAPROMISE ?= no
 # Always enable FT2232 SPI dongles for now.
 CONFIG_FT2232_SPI ?= yes
 
+# ITE Embedded Controllers.
+CONFIG_ITE_EC ?= yes
+
 # Always enable Altera USB-Blaster dongles for now.
 CONFIG_USBBLASTER_SPI ?= yes
 
@@ -590,6 +593,18 @@ ifeq ($(CONFIG_INTERNAL), yes)
 FEATURE_FLAGS += -D'CONFIG_INTERNAL=1'
 PROGRAMMER_OBJS += processor_enable.o chipset_enable.o board_enable.o cbtable.o internal.o known_boards.o
 endif
+NEED_LIBPCI += CONFIG_INTERNAL
+endif
+
+ifeq ($(CONFIG_ITE_EC), yes)
+FEATURE_CFLAGS += -D'CONFIG_ITE_EC=1'
+PROGRAMMER_OBJS += ite_ec.o
+ifeq ($(findstring it87spi.o,$(PROGRAMMER_OBJS)),)
+# Do not include it87spi.c twice
+PROGRAMMER_OBJS += it87spi.o
+endif
+NEED_RAW_ACCESS += CONFIG_ITE_EC
+NEED_LIBPCI += CONFIG_ITE_EC
 endif
 
 ifeq ($(CONFIG_INTERNAL_DMI), yes)

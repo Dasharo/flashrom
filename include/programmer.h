@@ -95,6 +95,7 @@ extern const struct programmer_entry programmer_satasii;
 extern const struct programmer_entry programmer_serprog;
 extern const struct programmer_entry programmer_stlinkv3_spi;
 extern const struct programmer_entry programmer_usbblaster_spi;
+extern const struct programmer_entry programmer_ite_ec;
 
 int programmer_init(const struct programmer_entry *prog, const char *param);
 int programmer_shutdown(void);
@@ -221,13 +222,6 @@ void w836xx_ext_enter(uint16_t port);
 void w836xx_ext_leave(uint16_t port);
 void probe_superio_winbond(void);
 int it8705f_write_enable(uint8_t port);
-uint8_t sio_read(uint16_t port, uint8_t reg);
-void sio_write(uint16_t port, uint8_t reg, uint8_t data);
-void sio_switch_ldn(uint16_t port, uint8_t ldn);
-uint16_t sio_get_iobase(uint16_t port, uint8_t io_bar_number);
-uint16_t sio_read_id(uint16_t port, uint8_t io_bar_number);
-bool sio_is_ldn_enabled(uint16_t port);
-void sio_mask(uint16_t port, uint8_t reg, uint8_t data, uint8_t mask);
 void board_handle_before_superio(void);
 void board_handle_before_laptop(void);
 int board_flash_enable(const char *vendor, const char *model, const char *cb_vendor, const char *cb_model);
@@ -239,6 +233,24 @@ int chipset_flash_enable(const struct programmer_cfg *cfg);
 int processor_flash_enable(void);
 #endif
 
+#if NEED_RAW_ACCESS == 1
+/* sio.c */
+uint8_t sio_read(uint16_t port, uint8_t reg);
+void sio_write(uint16_t port, uint8_t reg, uint8_t data);
+void sio_switch_ldn(uint16_t port, uint8_t ldn);
+uint16_t sio_get_iobase(uint16_t port, uint8_t io_bar_number);
+uint16_t sio_read_id(uint16_t port, uint8_t io_bar_number);
+bool sio_is_ldn_enabled(uint16_t port);
+void sio_mask(uint16_t port, uint8_t reg, uint8_t data, uint8_t mask);
+#endif
+
+/* physmap.c */
+void *physmap(const char *descr, uintptr_t phys_addr, size_t len);
+void *rphysmap(const char *descr, uintptr_t phys_addr, size_t len);
+void *physmap_ro(const char *descr, uintptr_t phys_addr, size_t len);
+void *physmap_ro_unaligned(const char *descr, uintptr_t phys_addr, size_t len);
+void physunmap(void *virt_addr, size_t len);
+void physunmap_unaligned(void *virt_addr, size_t len);
 #if CONFIG_INTERNAL == 1
 /* cbtable.c */
 int cb_parse_table(const char **vendor, const char **model);
@@ -378,7 +390,9 @@ void exit_conf_mode_ite(uint16_t port);
 void probe_superio_ite(void);
 int init_superio_ite(const struct programmer_cfg *cfg);
 
-/* trivial wrapper to avoid cluttering internal_init() with #if */
+/* it85spi.c */
+int it85xx_spi_init(struct superio s);
+
 static inline int try_mtd(const struct programmer_cfg *cfg)
 {
 #if CONFIG_LINUX_MTD == 1
@@ -390,8 +404,6 @@ static inline int try_mtd(const struct programmer_cfg *cfg)
 
 /* mcp6x_spi.c */
 int mcp6x_spi_init(int want_spi);
-
-
 
 /* sb600spi.c */
 int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev);
