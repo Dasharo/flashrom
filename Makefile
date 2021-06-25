@@ -842,7 +842,8 @@ ifneq ($(NEED_RAW_ACCESS), )
 # Raw memory, MSR or PCI port I/O access.
 FEATURE_CFLAGS += -D'NEED_RAW_ACCESS=1'
 PROGRAMMER_OBJS += hwaccess.o hwaccess_physmap.o
-
+# Generic Super I/O and EC helpers for raw access
+PROGRAMMER_OBJS += sio.o acpi_ec.o
 ifeq ($(ARCH), x86)
 FEATURE_CFLAGS += -D'__FLASHROM_HAVE_OUTB__=1'
 PROGRAMMER_OBJS += hwaccess_x86_io.o  hwaccess_x86_msr.o
