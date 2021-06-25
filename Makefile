@@ -841,6 +841,36 @@ ifeq ($(USE_LIBPCI), yes)
 PROGRAMMER_OBJS += pcidev.o
 override CFLAGS  += $(CONFIG_LIBPCI_CFLAGS)
 override LDFLAGS += $(CONFIG_LIBPCI_LDFLAGS)
+ifeq ($(TARGET_OS), NetBSD)
+# The libpci we want is called libpciutils on NetBSD and needs NetBSD libpci.
+PCILIBS += -lpciutils -lpci
+else
+PCILIBS += -lpci
+endif
+endif
+
+ifneq ($(NEED_RAW_ACCESS), )
+# Raw memory, MSR or PCI port I/O access.
+FEATURE_CFLAGS += -D'NEED_RAW_ACCESS=1'
+PROGRAMMER_OBJS += hwaccess.o hwaccess_physmap.o
+# Generic Super I/O and EC helpers for raw access
+PROGRAMMER_OBJS += sio.o acpi_ec.o
+ifeq ($(ARCH), x86)
+FEATURE_CFLAGS += -D'__FLASHROM_HAVE_OUTB__=1'
+PROGRAMMER_OBJS += hwaccess_x86_io.o  hwaccess_x86_msr.o
+
+ifeq ($(TARGET_OS), NetBSD)
+PCILIBS += -l$(shell uname -p)
+endif
+ifeq ($(TARGET_OS), OpenBSD)
+PCILIBS += -l$(shell uname -m)
+endif
+endif
+
+ifeq ($(TARGET_OS), Darwin)
+# DirectHW framework can be found in the DirectHW library.
+PCILIBS += -framework IOKit -framework DirectHW
+endif
 endif
 
 USE_LIBUSB1 := $(if $(call filter_deps,$(DEPENDS_ON_LIBUSB1)),yes,no)

@@ -49,28 +49,6 @@ void w836xx_ext_leave(uint16_t port)
 	OUTB(0xAA, port);
 }
 
-/* Generic Super I/O helper functions */
-uint8_t sio_read(uint16_t port, uint8_t reg)
-{
-	OUTB(reg, port);
-	return INB(port + 1);
-}
-
-void sio_write(uint16_t port, uint8_t reg, uint8_t data)
-{
-	OUTB(reg, port);
-	OUTB(data, port + 1);
-}
-
-void sio_mask(uint16_t port, uint8_t reg, uint8_t data, uint8_t mask)
-{
-	uint8_t tmp;
-
-	OUTB(reg, port);
-	tmp = INB(port + 1) & ~mask;
-	OUTB(tmp | (data & mask), port + 1);
-}
-
 /* Winbond W83697 documentation indicates that the index register has to be written for each access. */
 static void sio_mask_alzheimer(uint16_t port, uint8_t reg, uint8_t data, uint8_t mask)
 {

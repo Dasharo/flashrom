@@ -444,6 +444,17 @@ foreach p_name, p_data : programmer
     'flags' : p_data.get('flags', []),
     'default' : p_data.get('default', true),
   }
+# raw memory, MSR or PCI port I/O access
+if need_raw_access
+  srcs += 'hwaccess.c'
+  srcs += 'hwaccess_x86_io.c'
+  srcs += 'hwaccess_x86_msr.c'
+  srcs += 'hwaccess_physmap.c'
+  srcs += 'acpi_ec.c'
+  srcs += 'sio.c'
+  cargs += '-DNEED_RAW_ACCESS=1'
+  cargs += '-D__FLASHROM_HAVE_OUTB__=1'
+endif
 
   active        = false
   deps_found    = true
