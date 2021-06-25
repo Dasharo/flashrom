@@ -350,6 +350,8 @@ if need_raw_access
   srcs += 'hwaccess_x86_io.c'
   srcs += 'hwaccess_x86_msr.c'
   srcs += 'hwaccess_physmap.c'
+  srcs += 'acpi_ec.c'
+  srcs += 'sio.c'
   cargs += '-DNEED_RAW_ACCESS=1'
   cargs += '-D__FLASHROM_HAVE_OUTB__=1'
 endif
