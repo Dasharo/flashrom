@@ -45,6 +45,7 @@ add_project_arguments('-DFLASHROM_VERSION="' + meson.project_version() + '"', la
 config_print_wiki= get_option('classic_cli_print_wiki')
 config_default_programmer_name = get_option('default_programmer_name')
 config_default_programmer_args = get_option('default_programmer_args')
+config_ite_ec = get_option('config_ite_ec')
 
 cargs = []
 deps = []
@@ -127,6 +128,101 @@ if systems_hwaccess.contains(host_machine.system())
   if ['x86', 'x86_64'].contains(host_machine.cpu_family())
     srcs += files('hwaccess_x86_msr.c', 'hwaccess_x86_io.c')
   endif
+endif
+if config_it8212
+  srcs += 'it8212.c'
+  cargs += '-DCONFIG_IT8212=1'
+endif
+if config_linux_mtd
+  srcs += 'linux_mtd.c'
+  cargs += '-DCONFIG_LINUX_MTD=1'
+endif
+if config_linux_spi
+  srcs += 'linux_spi.c'
+  cargs += '-DCONFIG_LINUX_SPI=1'
+endif
+if config_mstarddc_spi
+  srcs += 'mstarddc_spi.c'
+  cargs += '-DCONFIG_MSTARDDC_SPI=1'
+endif
+if config_nic3com
+  srcs += 'nic3com.c'
+  cargs += '-DCONFIG_NIC3COM=1'
+endif
+if config_nicintel
+  srcs += 'nicintel.c'
+  cargs += '-DCONFIG_NICINTEL=1'
+endif
+if config_nicintel_eeprom
+  srcs += 'nicintel_eeprom.c'
+  cargs += '-DCONFIG_NICINTEL_EEPROM=1'
+endif
+if config_nicintel_spi
+  srcs += 'nicintel_spi.c'
+  config_bitbang_spi = true
+  cargs += '-DCONFIG_NICINTEL_SPI=1'
+endif
+if config_nicnatsemi
+  srcs += 'nicnatsemi.c'
+  cargs += '-DCONFIG_NICNATSEMI=1'
+endif
+if config_nicrealtek
+  srcs += 'nicrealtek.c'
+  cargs += '-DCONFIG_NICREALTEK=1'
+endif
+if config_ogp_spi
+  config_bitbang_spi = true
+  srcs += 'ogp_spi.c'
+  cargs += '-DCONFIG_OGP_SPI=1'
+endif
+if config_pickit2_spi
+  srcs += 'pickit2_spi.c'
+  cargs += '-DCONFIG_PICKIT2_SPI=1'
+endif
+if config_pony_spi
+  srcs += 'pony_spi.c'
+  need_serial = true
+  config_bitbang_spi = true
+  cargs += '-DCONFIG_PONY_SPI=1'
+endif
+if config_rayer_spi
+  srcs += 'rayer_spi.c'
+  config_bitbang_spi = true
+  need_raw_access = true
+  cargs += '-DCONFIG_RAYER_SPI=1'
+endif
+if config_satamv
+  srcs += 'satamv.c'
+  cargs += '-DCONFIG_SATAMV=1'
+endif
+if config_satasii
+  srcs += 'satasii.c'
+  cargs += '-DCONFIG_SATASII=1'
+endif
+if config_serprog
+  srcs += 'serprog.c'
+  cargs += '-DCONFIG_SERPROG=1'
+  need_serial = true
+endif
+if config_usbblaster_spi
+  srcs += 'usbblaster_spi.c'
+  cargs += '-DCONFIG_USBBLASTER_SPI=1'
+endif
+if config_stlinkv3_spi
+  srcs += 'stlinkv3_spi.c'
+  cargs += '-DCONFIG_STLINKV3_SPI=1'
+endif
+if config_lspcon_i2c_spi
+  srcs += 'lspcon_i2c_spi.c'
+  cargs += '-DCONFIG_LSPCON_I2C_SPI=1'
+endif
+if config_realtek_mst_i2c_spi
+  srcs += 'realtek_mst_i2c_spi.c'
+  cargs += '-DCONFIG_REALTEK_MST_I2C_SPI=1'
+endif
+if config_ite_ec
+  srcs += 'ite_ec.c'
+  cargs += '-DCONFIG_ITE_EC=1'
 endif
 
 # Pseudo dependencies
