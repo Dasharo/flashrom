@@ -41,3 +41,4 @@ option('config_usbblaster_spi', type : 'boolean', value : true, description : 'A
 option('config_stlinkv3_spi', type : 'boolean', value : true, description : 'STMicroelectronics STLINK-V3')
 option('config_lspcon_i2c_spi', type : 'boolean', value : false, description : 'Parade lspcon USB-C to HDMI protocol translator')
 option('config_realtek_mst_i2c_spi', type : 'boolean', value : true, description : 'Realtek MultiStream Transport MST')
+option('config_ite_ec', type : 'boolean', value : true, description : 'Clevo ITE EC')

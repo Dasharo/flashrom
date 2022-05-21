@@ -100,6 +100,7 @@ config_realtek_mst_i2c_spi = get_option('config_realtek_mst_i2c_spi')
 config_print_wiki= get_option('print_wiki')
 config_default_programmer_name = get_option('default_programmer_name')
 config_default_programmer_args = get_option('default_programmer_args')
+config_ite_ec = get_option('config_ite_ec')
 
 cargs = []
 deps = []
@@ -332,6 +333,10 @@ endif
 if config_realtek_mst_i2c_spi
   srcs += 'realtek_mst_i2c_spi.c'
   cargs += '-DCONFIG_REALTEK_MST_I2C_SPI=1'
+endif
+if config_ite_ec
+  srcs += 'ite_ec.c'
+  cargs += '-DCONFIG_ITE_EC=1'
 endif
 
 # bitbanging SPI infrastructure
