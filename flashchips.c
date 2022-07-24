@@ -16191,6 +16191,13 @@ const struct flashchip flashchips[] = {
 		.total_size	= 16384,
 		.page_size	= 256,
 		/* 4 x 256B Security Region (OTP) */
+		/*
+		 * Note: Map of registers names:
+		 *	 STATUS1         ... Status Register 1
+		 *	                 ... Status Register 2 (read-only)
+		 *	 STATUS2/CONFIG1 ... Configuration Register 1
+		 *	 STATUS3/CONFIG2 ... Configuration Register 2
+		 */
 		.feature_bits	= FEATURE_WRSR_WREN | FEATURE_WRSR_EXT3 | FEATURE_OTP,
 		.tested		= TEST_UNTESTED,
 		.probe		= probe_spi_rdid,
@@ -16221,20 +16228,13 @@ const struct flashchip flashchips[] = {
 		.voltage	= {2700, 3600},
 		.reg_bits	=
 		{
-			/*
-			 * Note: This chip has a read-only Status Register 2 that is not
-			 *	 counted here. Registers are mapped as follows:
-			 *	 STATUS1 ... Status Register 1
-			 *	 STATUS2 ... Configuration Register 1
-			 *	 STATUS3 ... Configuration Register 2
-			 */
 			.srp	= {STATUS1, 7, RW},
-			.srl	= {STATUS2, 0, RW},
+			.srl	= {CONFIG1, 0, RW},
 			.bp	= {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}},
 			.tb	= {STATUS1, 5, RW},
 			.sec	= {STATUS1, 6, RW},
-			.cmp	= {STATUS2, 6, RW},
-			.wps	= {STATUS3, 2, RW},
+			.cmp	= {CONFIG1, 6, RW},
+			.wps	= {CONFIG2, 2, RW},
 		},
 		.decode_range	= decode_range_spi25,
 	},
@@ -16675,6 +16675,13 @@ const struct flashchip flashchips[] = {
 		.total_size	= 32768,
 		.page_size	= 256,
 		/* 4 x 256B Security Region (OTP) */
+		/*
+		 * Note: Map of registers names:
+		 *	 STATUS1         ... Status Register 1
+		 *	                 ... Status Register 2 (read-only)
+		 *	 STATUS2/CONFIG1 ... Configuration Register 1
+		 *	 STATUS3/CONFIG2 ... Configuration Register 2
+		 */
 		.feature_bits	= FEATURE_WRSR_WREN | FEATURE_WRSR_EXT3 | FEATURE_OTP |
 				  FEATURE_4BA_ENTER | FEATURE_4BA_NATIVE,
 		.tested		= TEST_UNTESTED,
@@ -16715,19 +16722,12 @@ const struct flashchip flashchips[] = {
 		.voltage	= {2700, 3600},
 		.reg_bits	=
 		{
-			/*
-			 * Note: This chip has a read-only Status Register 2 that is not
-			 *	 counted here. Registers are mapped as follows:
-			 *	 STATUS1 ... Status Register 1
-			 *	 STATUS2 ... Configuration Register 1
-			 *	 STATUS3 ... Configuration Register 2
-			 */
 			.srp	= {STATUS1, 7, RW},
-			.srl	= {STATUS2, 0, RW},
+			.srl	= {CONFIG1, 0, RW},
 			.bp	= {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}, {STATUS1, 5, RW}},
 			.tb	= {STATUS1, 6, RW},
-			.cmp	= {STATUS2, 6, RW},
-			.wps	= {STATUS3, 2, RW},
+			.cmp	= {CONFIG1, 6, RW},
+			.wps	= {CONFIG2, 2, RW},
 		},
 		.decode_range	= decode_range_spi25,
 	},

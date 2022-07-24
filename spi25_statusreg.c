@@ -184,6 +184,11 @@ int spi_read_register(const struct flashctx *flash, enum flash_reg reg, uint8_t 
 		read_cmd = JEDEC_RDSR;
 		break;
 	case STATUS2:
+		/* This check must go first because FEATURE_RDSR2_0x15 includes FEATURE_WRSR_EXT2. */
+		if ((feature_bits & FEATURE_RDSR2_0x15) == FEATURE_RDSR2_0x15) {
+			read_cmd = 0x15;
+			break;
+		}
 		if (feature_bits & (FEATURE_WRSR_EXT2 | FEATURE_WRSR2)) {
 			read_cmd = JEDEC_RDSR2;
 			break;

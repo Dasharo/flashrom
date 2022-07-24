@@ -154,6 +154,12 @@ enum write_granularity {
 /* Whether chip has security register (RDSCUR/WRSCUR commands) */
 #define FEATURE_SCUR		(1 << 24)
 
+/*
+ * Some chips read SR2 with 0x15 opcode and call it "configuration register".
+ * Writes are done as for FEATURE_WRSR_EXT2.
+ */
+#define FEATURE_RDSR2_0x15	((1 << 25) | FEATURE_WRSR_EXT2)
+
 #define ERASED_VALUE(flash)	(((flash)->chip->feature_bits & FEATURE_ERASED_ZERO) ? 0x00 : 0xff)
 
 enum test_state {
@@ -179,6 +185,11 @@ enum test_state {
 struct flashrom_flashctx;
 #define flashctx flashrom_flashctx /* TODO: Agree on a name and convert all occurrences. */
 typedef int (erasefunc_t)(struct flashctx *flash, unsigned int addr, unsigned int blocklen);
+
+/* For chips that call SR2 "Configuration Register 1" */
+#define CONFIG1 STATUS2
+/* For chips that call SR3 "Configuration Register 2" */
+#define CONFIG2 STATUS3
 
 enum flash_reg {
 	INVALID_REG = 0,
