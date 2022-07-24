@@ -11258,6 +11258,17 @@ const struct flashchip flashchips[] = {
 		.write		= spi_chip_write_256, /* Multi I/O supported */
 		.read		= spi_chip_read, /* Fast read (0x0B) and multi I/O supported */
 		.voltage	= {1700, 2000},
+		.reg_bits	=
+		{
+			/*
+			 * There is also a volatile lock register per 64KiB sector, which is not
+			 * mutually exclusive with BP-based protection.
+			 */
+			.srp    = {STATUS1, 7, RW},
+			.bp     = {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}},
+			.tb     = {STATUS1, 5, RW},
+		},
+		.decode_range	= decode_range_spi25,
 	},
 
 	{
@@ -11292,6 +11303,17 @@ const struct flashchip flashchips[] = {
 		.write		= spi_chip_write_256, /* Multi I/O supported */
 		.read		= spi_chip_read, /* Fast read (0x0B) and multi I/O supported */
 		.voltage	= {2700, 3600},
+		.reg_bits	=
+		{
+			/*
+			 * There is also a volatile lock register per 64KiB sector, which is not
+			 * mutually exclusive with BP-based protection.
+			 */
+			.srp    = {STATUS1, 7, RW},
+			.bp     = {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}},
+			.tb     = {STATUS1, 5, RW},
+		},
+		.decode_range	= decode_range_spi25,
 	},
 
 	{
@@ -11326,6 +11348,17 @@ const struct flashchip flashchips[] = {
 		.write		= spi_chip_write_256, /* Multi I/O supported */
 		.read		= spi_chip_read, /* Fast read (0x0B) and multi I/O supported */
 		.voltage	= {1700, 2000},
+		.reg_bits	=
+		{
+			/*
+			 * There is also a volatile lock register per 64KiB sector, which is not
+			 * mutually exclusive with BP-based protection.
+			 */
+			.srp    = {STATUS1, 7, RW},
+			.bp     = {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}, {STATUS1, 6, RW}},
+			.tb     = {STATUS1, 5, RW},
+		},
+		.decode_range	= decode_range_spi25,
 	},
 
 	{
@@ -11360,6 +11393,17 @@ const struct flashchip flashchips[] = {
 		.write		= spi_chip_write_256, /* Multi I/O supported */
 		.read		= spi_chip_read, /* Fast read (0x0B) and multi I/O supported */
 		.voltage	= {2700, 3600},
+		.reg_bits	=
+		{
+			/*
+			 * There is also a volatile lock register per 64KiB sector, which is not
+			 * mutually exclusive with BP-based protection.
+			 */
+			.srp    = {STATUS1, 7, RW},
+			.bp     = {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}, {STATUS1, 6, RW}},
+			.tb     = {STATUS1, 5, RW},
+		},
+		.decode_range	= decode_range_spi25,
 	},
 
 	{
@@ -11999,6 +12043,13 @@ const struct flashchip flashchips[] = {
 		.write		= spi_chip_write_256, /* Multi I/O supported */
 		.read		= spi_chip_read, /* Fast read (0x0B) and multi I/O supported */
 		.voltage	= {2700, 3600},
+		.reg_bits	=
+		{
+			.srp    = {STATUS1, 7, RW},
+			.bp     = {{STATUS1, 2, RW}, {STATUS1, 3, RW}, {STATUS1, 4, RW}, {STATUS1, 6, RW}},
+			.tb     = {STATUS1, 5, RW},
+		},
+		.decode_range	= decode_range_spi25,
 	},
 
 	{
