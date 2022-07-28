@@ -52,6 +52,7 @@ flashrom \- detect, read, write, verify and erase flash chips
                [\fB\-i\fR <image>[:<file>]]]
              [\fB\-\-wp\-status\fR] [\fB\-\-wp\-list\fR] [\fB\-\-wp\-enable\fR|\fB\-\-wp\-disable\fR]
              [\fB\-\-wp\-range\fR <start>,<length>|\fB\-\-wp\-region\fR <region>]
+             [\fB\-\-skip\-wp\-area\fR]
              [\fB\-n\fR] [\fB\-N\fR] [\fB\-f\fR])]
          [\fB\-V\fR[\fBV\fR[\fBV\fR]]] [\fB-o\fR <logfile>] [\fB\-\-progress\fR]
 
@@ -314,6 +315,9 @@ Same as \fB\-\-wp\-range\fR but protects the range occupied by an image region.
 This option requires a image layout to be specified, see \fB\-\-layout\fR. The
 region must be supported by the flash, see
 \fB\-\-wp\-list\fR.
+.TP
+.B "\-\-skip\-wp-area"
+Make flashrom automatically skip over write-protected area.
 .TP
 .B "\-\-flash\-name"
 Prints out the detected flash chip's name.
