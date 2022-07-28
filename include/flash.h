@@ -356,6 +356,7 @@ struct flashrom_flashctx {
 		bool force_boardmismatch;
 		bool verify_after_write;
 		bool verify_whole_chip;
+		bool skip_wp_area;
 	} flags;
 	/* We cache the state of the extended address register (highest byte
 	 * of a 4BA for 3BA instructions) and the state of the 4BA mode here.
