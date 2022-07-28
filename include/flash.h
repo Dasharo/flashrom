@@ -350,6 +350,7 @@ struct flashrom_flashctx {
 	struct registered_master *mst;
 	const struct flashrom_layout *layout;
 	struct flashrom_layout *default_layout;
+	struct flashrom_layout *wpless_layout;
 	struct {
 		bool force;
 		bool force_boardmismatch;
