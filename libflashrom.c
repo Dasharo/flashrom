@@ -259,6 +259,7 @@ void flashrom_flash_release(struct flashrom_flashctx *const flashctx)
 		return;
 
 	flashrom_layout_release(flashctx->default_layout);
+	flashrom_layout_release(flashctx->wpless_layout);
 	free(flashctx->chip);
 	free(flashctx);
 }

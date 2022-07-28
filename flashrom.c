@@ -1819,6 +1819,84 @@ static int chip_safety_check(const struct flashctx *flash, int force,
 	return 0;
 }
 
+static int get_wp_range(struct flashctx *flash, size_t *wp_start, size_t *wp_len)
+{
+	struct flashrom_wp_cfg *cfg = NULL;
+	if (flashrom_wp_cfg_new(&cfg) != FLASHROM_WP_OK) {
+		msg_cerr("Error: Failed to create WP configuration.\n");
+		return 1;
+	}
+
+	if (flashrom_wp_read_cfg(cfg, flash) != FLASHROM_WP_OK) {
+		flashrom_wp_cfg_release(cfg);
+		msg_cerr("Error: Failed to read WP configuration.\n");
+		return 1;
+	}
+
+	flashrom_wp_get_range(wp_start, wp_len, cfg);
+
+	flashrom_wp_cfg_release(cfg);
+	return 0;
+}
+
+static int add_and_include_region(struct flashrom_layout *layout, size_t start, size_t end, const char *name)
+{
+	if (flashrom_layout_add_region(layout, start, end, name)) {
+		msg_cerr("Error: Failed to add \"%s\" region to a layout.\n", name);
+		return 1;
+	}
+	if (flashrom_layout_include_region(layout, name)) {
+		msg_cerr("Error: Failed to include \"%s\" region in a layout.\n", name);
+		return 1;
+	}
+	return 0;
+}
+
+static int handle_locked_wp(struct flashctx *flash)
+{
+	size_t wp_start, wp_len;
+	if (get_wp_range(flash, &wp_start, &wp_len))
+		return 1;
+
+	msg_cwarn("\nWARNING!: Updating only part of the image might render your device unusable if old and\n"
+		  "          new parts are not compatible!\n\n");
+
+	if (get_layout(flash) != get_default_layout(flash)) {
+		msg_cerr("Error: Chip layout is non-trivial, can't skip WP area in this case.\n");
+		return 1;
+	}
+
+	struct flashrom_layout *layout = NULL;
+	if (flashrom_layout_new(&layout)) {
+		msg_cerr("Error: Failed to create a new layout.\n");
+		return 1;
+	}
+
+	size_t wp_end = wp_len == 0 ? wp_start : wp_start + wp_len - 1;
+	size_t flash_size = flashrom_flash_getsize(flash);
+
+	if (wp_start != 0 && add_and_include_region(layout, 0, wp_start - 1, "before WP"))
+		goto error;
+
+	if (flashrom_layout_add_region(layout, wp_start, wp_end, "WP")) {
+		msg_cerr("Error: Failed to add a region to a layout.\n");
+		goto error;
+	}
+
+	if (wp_end != flash_size - 1 && add_and_include_region(layout, wp_end + 1, flash_size - 1, "after WP"))
+		goto error;
+
+	flash->wpless_layout = layout;
+	flashrom_layout_set(flash, layout);
+
+	return 0;
+
+error:
+	if (layout != NULL)
+		flashrom_layout_release(layout);
+	return 1;
+}
+
 int prepare_flash_access(struct flashctx *const flash,
 			 const bool read_it, const bool write_it,
 			 const bool erase_it, const bool verify_it)
@@ -1841,8 +1919,10 @@ int prepare_flash_access(struct flashctx *const flash,
 
 	/* Given the existence of read locks, we want to unlock for read,
 	   erase and write. */
-	if (flash->chip->unlock)
-		flash->chip->unlock(flash);
+	if (flash->chip->unlock && flash->chip->unlock(flash)) {
+		if (handle_locked_wp(flash))
+			return 1;
+	}
 
 	flash->address_high_byte = -1;
 	flash->in_4ba_mode = false;
