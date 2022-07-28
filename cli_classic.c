@@ -66,6 +66,7 @@ static void cli_classic_usage(const char *name)
 	       "      --wp-range=<start>,<len>      set write protection range (use --wp-range=0,0\n"
 	       "                                    to unprotect the entire flash)\n"
 	       "      --wp-region <region>          set write protection region\n"
+	       "      --skip-wp-area                skip over write-protected area\n"
 	       "      --flash-name                  read out the detected flash name\n"
 	       "      --flash-size                  read out the detected flash size\n"
 	       "      --fmap                        read ROM layout from fmap embedded in ROM\n"
@@ -472,6 +473,7 @@ int main(int argc, char *argv[])
 	int flash_name = 0, flash_size = 0;
 	int enable_wp = 0, disable_wp = 0, print_wp_status = 0;
 	int set_wp_range = 0, set_wp_region = 0, print_wp_ranges = 0;
+	int skip_wp_area = 0;
 	uint32_t wp_start = 0, wp_len = 0;
 	int read_it = 0, extract_it = 0, write_it = 0, erase_it = 0, verify_it = 0;
 	int dont_verify_it = 0, dont_verify_all = 0, list_supported = 0, operation_specified = 0;
@@ -491,6 +493,7 @@ int main(int argc, char *argv[])
 		OPTION_WP_ENABLE,
 		OPTION_WP_DISABLE,
 		OPTION_WP_LIST,
+		OPTION_SKIP_WP_AREA,
 		OPTION_PROGRESS,
 	};
 	int ret = 0;
@@ -522,6 +525,7 @@ int main(int argc, char *argv[])
 		{"wp-region",		1, NULL, OPTION_WP_SET_REGION},
 		{"wp-enable",		0, NULL, OPTION_WP_ENABLE},
 		{"wp-disable",		0, NULL, OPTION_WP_DISABLE},
+		{"skip-wp-area",	0, NULL, OPTION_SKIP_WP_AREA},
 		{"list-supported",	0, NULL, 'L'},
 		{"list-supported-wiki",	0, NULL, 'z'},
 		{"programmer",		1, NULL, 'p'},
@@ -690,6 +694,9 @@ int main(int argc, char *argv[])
 			break;
 		case OPTION_WP_DISABLE:
 			disable_wp = 1;
+			break;
+		case OPTION_SKIP_WP_AREA:
+			skip_wp_area = 1;
 			break;
 		case 'L':
 			cli_classic_validate_singleop(&operation_specified);
@@ -1073,6 +1080,7 @@ int main(int argc, char *argv[])
 #endif
 	flashrom_flag_set(fill_flash, FLASHROM_FLAG_VERIFY_AFTER_WRITE, !dont_verify_it);
 	flashrom_flag_set(fill_flash, FLASHROM_FLAG_VERIFY_WHOLE_CHIP, !dont_verify_all);
+	flashrom_flag_set(fill_flash, FLASHROM_FLAG_SKIP_WP_AREA, skip_wp_area);
 
 	/* FIXME: We should issue an unconditional chip reset here. This can be
 	 * done once we have a .reset function in struct flashchip.
