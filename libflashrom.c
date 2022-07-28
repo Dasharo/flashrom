@@ -272,6 +272,7 @@ void flashrom_flag_set(struct flashrom_flashctx *const flashctx,
 		case FLASHROM_FLAG_FORCE_BOARDMISMATCH:	flashctx->flags.force_boardmismatch = value; break;
 		case FLASHROM_FLAG_VERIFY_AFTER_WRITE:	flashctx->flags.verify_after_write = value; break;
 		case FLASHROM_FLAG_VERIFY_WHOLE_CHIP:	flashctx->flags.verify_whole_chip = value; break;
+		case FLASHROM_FLAG_SKIP_WP_AREA:	flashctx->flags.skip_wp_area = value; break;
 	}
 }
 
@@ -282,6 +283,7 @@ bool flashrom_flag_get(const struct flashrom_flashctx *const flashctx, const enu
 		case FLASHROM_FLAG_FORCE_BOARDMISMATCH:	return flashctx->flags.force_boardmismatch;
 		case FLASHROM_FLAG_VERIFY_AFTER_WRITE:	return flashctx->flags.verify_after_write;
 		case FLASHROM_FLAG_VERIFY_WHOLE_CHIP:	return flashctx->flags.verify_whole_chip;
+		case FLASHROM_FLAG_SKIP_WP_AREA:	return flashctx->flags.skip_wp_area;
 		default:				return false;
 	}
 }

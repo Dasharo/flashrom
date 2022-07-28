@@ -1861,6 +1861,12 @@ static int handle_locked_wp(struct flashctx *flash)
 	msg_cwarn("\nWARNING!: Updating only part of the image might render your device unusable if old and\n"
 		  "          new parts are not compatible!\n\n");
 
+	if (!flashrom_flag_get(flash, FLASHROM_FLAG_SKIP_WP_AREA)) {
+		msg_cwarn("          If you think you know what you're doing, pass --skip-wp-area to exclude\n"
+			  "          protected part of the flash from the operation.\n");
+		return 1;
+	}
+
 	if (get_layout(flash) != get_default_layout(flash)) {
 		msg_cerr("Error: Chip layout is non-trivial, can't skip WP area in this case.\n");
 		return 1;
