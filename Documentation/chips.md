@@ -32,14 +32,14 @@ List of chips for extending WP support in flashrom as of 26 July 2022.
 | ^                 | `W25Q256.V`      | +        |                |               |
 | ^                 | `W25Q256JV_M`    | +        |                |               |
 | Macronix          | `MX25L3206E`     |          | +              | [MX25L3206E]  |in Dell OptiPlex
-| ^                 | `MX25L3208E`     |          | +              |               |same flash description as MX25L3206E
+| ^                 | `MX25L3208E`     |          | +              | [MX25L3206E]  |same flash description as MX25L3206E
 | ^                 | `MX25L6405`      |          | +              |               |
 | ^                 | `MX25L6405D`     |          | +              |               |
-| ^                 | `MX25L6406E`     |          | +              |               |in Dell OptiPlex
-| ^                 | `MX25L6408E`     |          | +              |               |same flash description as MX25L6406E
+| ^                 | `MX25L6406E`     |          | +              | [MX25L6406E]  |in Dell OptiPlex
+| ^                 | `MX25L6408E`     |          | +              | [MX25L6406E]  |same flash description as MX25L6406E
 | ^                 | `MX25L6436E`     |          | +              | [MX25L6436E]  |
-| ^                 | `MX25L6445E`     |          | +              |               |
-| ^                 | `MX25L6465E`     |          | +              |               |
+| ^                 | `MX25L6445E`     |          | +              | [MX25L6436E]  |
+| ^                 | `MX25L6465E`     |          | +              | [MX25L6436E]  |
 | ^                 | `MX25L6473E`     |          | +              |               |
 | ^                 | `MX25L6473F`     |          | +              |               |
 | ^                 | `MX25L6495F`     |          | +              |               |**no datasheet!**
@@ -52,4 +52,5 @@ List of chips for extending WP support in flashrom as of 26 July 2022.
 
 [flashrom#185]: https://github.com/flashrom/flashrom/issues/185
 [MX25L3206E]: MX25L3206E.md
+[MX25L6406E]: MX25L6406E.md
 [MX25L6436E]: MX25L6436E.md
