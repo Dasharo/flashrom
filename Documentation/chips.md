@@ -24,7 +24,7 @@ List of chips for extending WP support in flashrom as of 26 July 2022.
 | ^                 | `W25Q64CV`       | +        | +              |               |
 | ^                 | `W25Q64FV`       | +        | +              |               |in KGPE-D16
 | ^                 | `W25Q64JV-.Q`    | +        | +              |               |
-| ^                 | `W25Q64.W`       | +        | +              |               |in Protectli FW4C
+| ^                 | `W25Q64.W`       | +        | +              |  [W25Q64.W]   |in Protectli FW4C
 | ^                 | `W25Q128.V`      | +        |                |               |in KGPE-D16
 | ^                 | `W25Q128.V..M`   | +        |                |               |
 | ^                 | `W25Q128.W`      | +        |                |               |
@@ -54,3 +54,4 @@ List of chips for extending WP support in flashrom as of 26 July 2022.
 [MX25L3206E]: MX25L3206E.md
 [MX25L6406E]: MX25L6406E.md
 [MX25L6436E]: MX25L6436E.md
+[W25Q64.W]: W25Q64.W.md
