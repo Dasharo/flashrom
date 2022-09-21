@@ -37,7 +37,7 @@ List of chips for extending WP support in flashrom as of 26 July 2022.
 | ^                 | `MX25L6405D`     |          | +              |               |
 | ^                 | `MX25L6406E`     |          | +              |               |in Dell OptiPlex
 | ^                 | `MX25L6408E`     |          | +              |               |same flash description as MX25L6406E
-| ^                 | `MX25L6436E`     |          | +              |               |
+| ^                 | `MX25L6436E`     |          | +              | [MX25L6436E]  |
 | ^                 | `MX25L6445E`     |          | +              |               |
 | ^                 | `MX25L6465E`     |          | +              |               |
 | ^                 | `MX25L6473E`     |          | +              |               |
@@ -52,3 +52,4 @@ List of chips for extending WP support in flashrom as of 26 July 2022.
 
 [flashrom#185]: https://github.com/flashrom/flashrom/issues/185
 [MX25L3206E]: MX25L3206E.md
+[MX25L6436E]: MX25L6436E.md
