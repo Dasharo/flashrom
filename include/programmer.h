@@ -141,6 +141,11 @@ int rpci_write_byte(struct pci_dev *dev, int reg, uint8_t data);
 int rpci_write_word(struct pci_dev *dev, int reg, uint16_t data);
 int rpci_write_long(struct pci_dev *dev, int reg, uint32_t data);
 
+struct pci_dev *pci_dev_find_vendorclass(uint16_t vendor, uint16_t devclass);
+struct pci_dev *pci_dev_find(uint16_t vendor, uint16_t device);
+struct pci_dev *pci_card_find(uint16_t vendor, uint16_t device,
+			      uint16_t card_vendor, uint16_t card_device);
+
 #if CONFIG_INTERNAL == 1
 struct penable {
 	uint16_t vendor_id;
@@ -233,7 +238,7 @@ int chipset_flash_enable(const struct programmer_cfg *cfg);
 int processor_flash_enable(void);
 #endif
 
-#if NEED_RAW_ACCESS == 1
+//#if NEED_RAW_ACCESS == 1
 /* sio.c */
 uint8_t sio_read(uint16_t port, uint8_t reg);
 void sio_write(uint16_t port, uint8_t reg, uint8_t data);
@@ -242,7 +247,7 @@ uint16_t sio_get_iobase(uint16_t port, uint8_t io_bar_number);
 uint16_t sio_read_id(uint16_t port, uint8_t io_bar_number);
 bool sio_is_ldn_enabled(uint16_t port);
 void sio_mask(uint16_t port, uint8_t reg, uint8_t data, uint8_t mask);
-#endif
+//#endif
 
 /* physmap.c */
 void *physmap(const char *descr, uintptr_t phys_addr, size_t len);
