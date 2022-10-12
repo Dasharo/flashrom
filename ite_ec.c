@@ -526,9 +526,9 @@ static struct opaque_master programmer_opaque_ite_ec = {
 	.erase		= ite_ec_erase,
 };
 
-static bool ite_ec_board_mismatch_enabled(void)
+static bool ite_ec_board_mismatch_enabled(const struct programmer_cfg *cfg)
 {
-	char *p = extract_programmer_param("boardmismatch");
+	char *p = extract_programmer_param_str(cfg, "boardmismatch");
 	if (p && strcmp(p, "force") == 0) {
 		free(p);
 		return true;
@@ -537,27 +537,27 @@ static bool ite_ec_board_mismatch_enabled(void)
 	return false;
 }
 
-static bool ite_ec_check_params(struct ite_ec_data *ctx_data)
+static bool ite_ec_check_params(struct ite_ec_data *ctx_data, const struct programmer_cfg *cfg)
 {
 	char *p;
 	bool ret = true;
 
 	msg_pdbg("%s()\n", __func__);
 
-	p = extract_programmer_param("noaccheck");
+	p = extract_programmer_param_str(cfg, "noaccheck");
 	if (p && strcmp(p, "yes") == 0) {
 		/* Just mark it as present. */
 		ctx_data->ac_adapter_plugged = true;
 	}
 	free(p);
 
-	p = extract_programmer_param("ite5570");
+	p = extract_programmer_param_str(cfg, "ite5570");
 	if (p && strcmp(p, "yes") == 0) {
 		ctx_data->support_ite5570 = true;
 	}
 	free(p);
 
-	p = extract_programmer_param("autoload");
+	p = extract_programmer_param_str(cfg, "autoload");
 	if (p) {
 		if (!strcmp(p, "none")) {
 			ctx_data->autoload_action = AUTOLOAD_NO_ACTION;
@@ -575,7 +575,7 @@ static bool ite_ec_check_params(struct ite_ec_data *ctx_data)
 	}
 	free(p);
 
-	p = extract_programmer_param("romsize");
+	p = extract_programmer_param_str(cfg, "romsize");
 	if (p) {
 		if (!strcmp(p, "64K")) {
 			ctx_data->rom_size_in_blocks = 1;
@@ -669,7 +669,7 @@ static bool is_board_supported(void)
 	for (i = 0; i < ARRAY_SIZE(ite_ec_supported_boards); i++) {
 		const struct pci_match_vendor_entry *entry = &ite_ec_supported_boards[i];
 
-		if (pci_card_find(entry->pci_vid, entry->pci_devid,
+		if (pcidev_card_find(entry->pci_vid, entry->pci_devid,
 				  entry->ss_venid, entry->ss_devid)) {
 			msg_perr("Found PCI subsystem match for device %s %s\n",
 				 entry->vendor, entry->model);
@@ -707,7 +707,7 @@ static void probe_ite_superio_support(struct ite_ec_data *ctx_data)
 	}
 }
 
-static int ite_ec_init(void)
+static int ite_ec_init(const struct programmer_cfg *cfg)
 {
 	bool read_success = false;
 	struct ite_ec_data *ctx_data;
@@ -721,7 +721,7 @@ static int ite_ec_init(void)
 	}
 
 	if (!is_board_supported()) {
-		if (ite_ec_board_mismatch_enabled()) {
+		if (ite_ec_board_mismatch_enabled(cfg)) {
 			msg_pinfo("Proceeding anyway because user forced us to.\n");
 		} else {
 			msg_pwarn("Probing on unsupported laptop may irritate your EC and cause fan failure, "
@@ -749,7 +749,7 @@ static int ite_ec_init(void)
 	if (!ite_ec_init_ctx(ctx_data))
 		goto ite_ec_init_exit;
 
-	if (!ite_ec_check_params(ctx_data))
+	if (!ite_ec_check_params(ctx_data, cfg))
 		goto ite_ec_init_exit;
 
 	if (!ec_write_cmd(0xde, EC_MAX_STATUS_CHECKS) ||
@@ -899,8 +899,8 @@ const struct programmer_entry programmer_ite_ec = {
 	.type			= OTHER,
 	.devs.note		= "Programmer for ITE Embedded Controllers\n",
 	.init			= ite_ec_init,
-	.map_flash_region	= fallback_map,
-	.unmap_flash_region	= fallback_unmap,
-	.delay			= internal_delay,
+//	.map_flash_region	= fallback_map,
+//	.unmap_flash_region	= fallback_unmap,
+//	.delay			= internal_delay,
 };
 #endif
