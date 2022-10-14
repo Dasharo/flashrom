@@ -597,7 +597,7 @@ NEED_LIBPCI += CONFIG_INTERNAL
 endif
 
 ifeq ($(CONFIG_ITE_EC), yes)
-FEATURE_CFLAGS += -D'CONFIG_ITE_EC=1'
+FEATURE_FLAGS += -D'CONFIG_ITE_EC=1'
 PROGRAMMER_OBJS += ite_ec.o
 ifeq ($(findstring it87spi.o,$(PROGRAMMER_OBJS)),)
 # Do not include it87spi.c twice
