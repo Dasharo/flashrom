@@ -218,6 +218,7 @@ if get_option('config_lspcon_i2c_spi')
 endif
 if get_option('config_realtek_mst_i2c_spi')
   srcs += 'realtek_mst_i2c_spi.c'
+  srcs += 'i2c_helper_linux.c'
   cargs += '-DCONFIG_REALTEK_MST_I2C_SPI=1'
 endif
 if get_option('config_ite_ec')
