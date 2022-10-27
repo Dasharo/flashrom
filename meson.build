@@ -129,98 +129,98 @@ if systems_hwaccess.contains(host_machine.system())
     srcs += files('hwaccess_x86_msr.c', 'hwaccess_x86_io.c')
   endif
 endif
-if config_it8212
+if get_option('config_it8212')
   srcs += 'it8212.c'
   cargs += '-DCONFIG_IT8212=1'
 endif
-if config_linux_mtd
+if get_option('config_linux_mtd')
   srcs += 'linux_mtd.c'
   cargs += '-DCONFIG_LINUX_MTD=1'
 endif
-if config_linux_spi
+if get_option('config_linux_spi')
   srcs += 'linux_spi.c'
   cargs += '-DCONFIG_LINUX_SPI=1'
 endif
-if config_mstarddc_spi
+if get_option('config_mstarddc_spi')
   srcs += 'mstarddc_spi.c'
   cargs += '-DCONFIG_MSTARDDC_SPI=1'
 endif
-if config_nic3com
+if get_option('config_nic3com')
   srcs += 'nic3com.c'
   cargs += '-DCONFIG_NIC3COM=1'
 endif
-if config_nicintel
+if get_option('config_nicintel')
   srcs += 'nicintel.c'
   cargs += '-DCONFIG_NICINTEL=1'
 endif
-if config_nicintel_eeprom
+if get_option('config_nicintel_eeprom')
   srcs += 'nicintel_eeprom.c'
   cargs += '-DCONFIG_NICINTEL_EEPROM=1'
 endif
-if config_nicintel_spi
+if get_option('config_nicintel_spi')
   srcs += 'nicintel_spi.c'
   config_bitbang_spi = true
   cargs += '-DCONFIG_NICINTEL_SPI=1'
 endif
-if config_nicnatsemi
+if get_option('config_nicnatsemi')
   srcs += 'nicnatsemi.c'
   cargs += '-DCONFIG_NICNATSEMI=1'
 endif
-if config_nicrealtek
+if get_option('config_nicrealtek')
   srcs += 'nicrealtek.c'
   cargs += '-DCONFIG_NICREALTEK=1'
 endif
-if config_ogp_spi
+if get_option('config_ogp_spi')
   config_bitbang_spi = true
   srcs += 'ogp_spi.c'
   cargs += '-DCONFIG_OGP_SPI=1'
 endif
-if config_pickit2_spi
+if get_option('config_pickit2_spi')
   srcs += 'pickit2_spi.c'
   cargs += '-DCONFIG_PICKIT2_SPI=1'
 endif
-if config_pony_spi
+if get_option('config_pony_spi')
   srcs += 'pony_spi.c'
   need_serial = true
   config_bitbang_spi = true
   cargs += '-DCONFIG_PONY_SPI=1'
 endif
-if config_rayer_spi
+if get_option('config_rayer_spi')
   srcs += 'rayer_spi.c'
   config_bitbang_spi = true
   need_raw_access = true
   cargs += '-DCONFIG_RAYER_SPI=1'
 endif
-if config_satamv
+if get_option('config_satamv')
   srcs += 'satamv.c'
   cargs += '-DCONFIG_SATAMV=1'
 endif
-if config_satasii
+if get_option('config_satasii')
   srcs += 'satasii.c'
   cargs += '-DCONFIG_SATASII=1'
 endif
-if config_serprog
+if get_option('config_serprog')
   srcs += 'serprog.c'
   cargs += '-DCONFIG_SERPROG=1'
   need_serial = true
 endif
-if config_usbblaster_spi
+if get_option('config_usbblaster_spi')
   srcs += 'usbblaster_spi.c'
   cargs += '-DCONFIG_USBBLASTER_SPI=1'
 endif
-if config_stlinkv3_spi
+if get_option('config_stlinkv3_spi')
   srcs += 'stlinkv3_spi.c'
   cargs += '-DCONFIG_STLINKV3_SPI=1'
 endif
-if config_lspcon_i2c_spi
+if get_option('config_lspcon_i2c_spi')
   srcs += 'lspcon_i2c_spi.c'
   cargs += '-DCONFIG_LSPCON_I2C_SPI=1'
 endif
-if config_realtek_mst_i2c_spi
+if get_option('config_realtek_mst_i2c_spi')
   srcs += 'realtek_mst_i2c_spi.c'
   cargs += '-DCONFIG_REALTEK_MST_I2C_SPI=1'
 endif
-if config_ite_ec
+if get_option('config_ite_ec')
   srcs += 'ite_ec.c'
   cargs += '-DCONFIG_ITE_EC=1'
 endif
