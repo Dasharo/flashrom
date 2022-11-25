@@ -52,6 +52,14 @@ const struct programmer_entry *const programmer_table[] = {
     &programmer_satasii,
 #endif
 
+#if CONFIG_AST1100 == 1
+    &programmer_ast1100,
+#endif
+
+#if CONFIG_AST2400 == 1
+    &programmer_ast2400,
+#endif
+
 #if CONFIG_ATAHPT == 1
     &programmer_atahpt,
 #endif

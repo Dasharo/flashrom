@@ -57,6 +57,8 @@ extern const struct programmer_entry *const programmer_table[];
 extern const size_t programmer_table_size;
 
 /* programmer drivers */
+extern const struct programmer_entry programmer_ast1100;
+extern const struct programmer_entry programmer_ast2400;
 extern const struct programmer_entry programmer_atahpt;
 extern const struct programmer_entry programmer_atapromise;
 extern const struct programmer_entry programmer_atavia;

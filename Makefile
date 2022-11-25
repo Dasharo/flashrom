@@ -136,6 +136,8 @@ DEPENDS_ON_X86_PORT_IO := \
 	CONFIG_SATAMV \
 
 DEPENDS_ON_LIBPCI := \
+	CONFIG_AST1100 \
+	CONFIG_AST2400 \
 	CONFIG_ATAHPT \
 	CONFIG_ATAPROMISE \
 	CONFIG_ATAVIA \
@@ -435,6 +437,12 @@ CONFIG_NIC3COM ?= yes
 # Enable NVIDIA graphics cards. Note: write and erase do not work properly.
 CONFIG_GFXNVIDIA ?= yes
 
+# Enable AST1100 BMC SoCs.
+CONFIG_AST1100 ?= yes
+
+# Enable AST2400 BMC SoCs.
+CONFIG_AST2400 ?= yes
+
 # Always enable SiI SATA controllers for now.
 CONFIG_SATASII ?= yes
 
@@ -639,6 +647,16 @@ endif
 ifeq ($(CONFIG_GFXNVIDIA), yes)
 FEATURE_FLAGS += -D'CONFIG_GFXNVIDIA=1'
 PROGRAMMER_OBJS += gfxnvidia.o
+endif
+
+ifeq ($(CONFIG_AST1100), yes)
+FEATURE_FLAGS += -D'CONFIG_AST1100=1'
+PROGRAMMER_OBJS += ast1100.o
+endif
+
+ifeq ($(CONFIG_AST2400), yes)
+FEATURE_FLAGS += -D'CONFIG_AST2400=1'
+PROGRAMMER_OBJS += ast2400.o
 endif
 
 ifeq ($(CONFIG_SATASII), yes)
