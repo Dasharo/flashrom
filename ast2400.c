@@ -24,7 +24,6 @@
 #include "programmer.h"
 #include "platform/pci.h"
 #include "hwaccess_physmap.h"
-#include "hwaccess_x86_io.h"
 
 #define PCI_VENDOR_ID_ASPEED		0x1a03
 
