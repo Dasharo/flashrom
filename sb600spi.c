@@ -310,6 +310,7 @@ static int spi100_spi_send_command(const struct flashctx *flash, unsigned int wr
 {
 	struct sb600spi_data *sb600_data = flash->mst->spi.data;
 	uint8_t *sb600_spibar = sb600_data->spibar;
+	uint32_t spi_cntrl0;
 	/* First byte is cmd which can not be sent through the buffer. */
 	unsigned char cmd = *writearr++;
 	writecnt--;
@@ -331,6 +332,15 @@ static int spi100_spi_send_command(const struct flashctx *flash, unsigned int wr
 		mmio_writeb(writearr[count], sb600_spibar + 0x80 + count);
 	}
 	msg_pspew("\n");
+
+	/* If IllegalAccess is set, the SPI100_EXECUTE_CMD in
+	 * SPI100_CMD_TRIGGER_REG cannot be written.
+	 */
+	spi_cntrl0 = mmio_readl(sb600_spibar + 0x00);
+	if ((spi_cntrl0 >> 21) & 0x1) {
+		msg_perr("IllegalAccess is set. Cannot issue SPI transaction!\n");
+		return -1;
+	}
 
 	execute_spi100_command(sb600_spibar);
 
@@ -644,9 +654,17 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 	uint8_t reg;
 	uint8_t *sb600_spibar = NULL;
 
+	enum amd_chipset amd_gen = determine_generation(dev);
+	if (amd_gen == CHIPSET_AMD_UNKNOWN)
+		return ERROR_NONFATAL;
+
 	/* Read SPI_BaseAddr */
 	tmp = pci_read_long(dev, 0xa0);
-	tmp &= 0xffffffe0;	/* remove bits 4-0 (reserved) */
+	if (amd_gen >= CHIPSET_YANGTZE)
+		tmp &= 0xffffffc0;	/* remove bits 5-0 */
+	else
+		tmp &= 0xffffffe0;	/* remove bits 4-0 (reserved) */
+
 	msg_pdbg("SPI base address is at 0x%x\n", tmp);
 
 	/* If the BAR has address 0, it is unlikely SPI is used. */
@@ -662,10 +680,6 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 	 * the mapped page.
 	 */
 	sb600_spibar += tmp & 0xfff;
-
-	enum amd_chipset amd_gen = determine_generation(dev);
-	if (amd_gen == CHIPSET_AMD_UNKNOWN)
-		return ERROR_NONFATAL;
 
 	/* How to read the following table and similar ones in this file:
 	 * "?" means we have no datasheet for this chipset generation or it doesn't have any relevant info.
@@ -748,13 +762,16 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 
 	if (((tmp >> 22) & 0x1) == 0 || ((tmp >> 23) & 0x1) == 0) {
 		msg_perr("ERROR: State of SpiAccessMacRomEn or SpiHostAccessRomEn prohibits full access.\n");
-		return ERROR_NONFATAL;
+		/* Proceed on Yangtze or newer, we will catch SPI transaction
+		 * errors with illegal access bit
+		 */
+		if (amd_gen < CHIPSET_YANGTZE)
+			return ERROR_NONFATAL;
 	}
 
 	if (amd_gen >= CHIPSET_SB89XX) {
 		tmp = mmio_readb(sb600_spibar + 0x1D);
 		msg_pdbg("Using SPI_CS%d\n", tmp & 0x3);
-		/* FIXME: Handle SpiProtect* configuration on Yangtze. */
 	}
 
 	/* Look for the SMBus device. */
