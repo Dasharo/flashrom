@@ -761,7 +761,7 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 	msg_pdbg("\n");
 
 	if (((tmp >> 22) & 0x1) == 0 || ((tmp >> 23) & 0x1) == 0) {
-		msg_perr("ERROR: State of SpiAccessMacRomEn or SpiHostAccessRomEn prohibits full access.\n");
+		msg_perr("State of SpiAccessMacRomEn or SpiHostAccessRomEn prohibits full access.\n");
 		/* Proceed on Yangtze or newer, we will catch SPI transaction
 		 * errors with illegal access bit
 		 */
