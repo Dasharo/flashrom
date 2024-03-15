@@ -1506,7 +1506,7 @@ static int enable_flash_fch(const struct programmer_cfg *cfg, struct pci_dev *de
 			if (spi_alt_cs & 0x20) {
 				read_prot = read_prot || (prot & 0x200);
 				write_prot = write_prot || (prot & 0x400);
-				msg_pdbg("FAILED!\n");
+				msg_pdbg("FAILED! (ROM Protect registers are locked.)\n");
 				ret = -1;
 				continue;
 			} else {
