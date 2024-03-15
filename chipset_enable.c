@@ -1535,7 +1535,7 @@ static int enable_flash_fch(const struct programmer_cfg *cfg, struct pci_dev *de
 		}
 
 		if (ret != 0)
-			msg_pwarn("ROM Protect registers are active and locked\n");
+			msg_pwarn("ROM Protect registers are active%s\n", spi_alt_cs & 0x20 ? " and locked" : "");
 	}
 
 	if (write_prot) {
