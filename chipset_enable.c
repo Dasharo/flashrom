@@ -1456,6 +1456,141 @@ static int enable_flash_sb600(const struct programmer_cfg *cfg, struct pci_dev *
 	return ret;
 }
 
+static int enable_flash_fch(const struct programmer_cfg *cfg, struct pci_dev *dev, const char *name)
+{
+	uint32_t prot, length;
+	uint8_t reg, spi_alt_cs;
+	int ret = 0;
+	uint8_t *fch_spi;
+	bool read_prot, write_prot;
+
+	uint32_t spibar = pci_read_long(dev, 0xa0) & 0xffffffc0; /* bits 31:6, SB600 has 31:5 */
+	if (spibar == 0) {
+		msg_perr("Error: Invalid SPI BASE\n");
+		return ERROR_FATAL;
+	}
+
+	/* Physical memory has to be mapped at page (4k) boundaries. */
+	fch_spi = rphysmap("FCH SPIBASE", spibar & 0xfffff000, 0x1000);
+	if (fch_spi == NULL) {
+		msg_perr("Error: Failed to map SPI BASE\n");
+		return ERROR_FATAL;
+	}
+
+	/* The low bits of the SPI base address are used as offset into
+	 * the mapped page.
+	 */
+	fch_spi += spibar & 0xfff;
+
+	read_prot = write_prot = false;
+
+	spi_alt_cs = mmio_readb(fch_spi + 0x1d);
+
+	/* ROM Protect registers active? */
+	if (spi_alt_cs & 0x8) {
+		/* Clear ROM protect 0-3. */
+		for (reg = 0x50; reg < 0x60; reg += 4) {
+			prot = pci_read_long(dev, reg);
+			/* No protection flags for this region?*/
+			if ((prot & 0x600) == 0)
+				continue;
+
+			length = ((prot & 0xff) + 1) << ((prot & 0x100) ? 16 : 12);
+			msg_pdbg("Chipset %s%sprotected flash from 0x%08x to 0x%08x, unlocking...",
+				  (prot & 0x200) ? "read " : "",
+				  (prot & 0x400) ? "write " : "",
+				  (prot & 0xfffff000),
+				  (prot & 0xfffff000) + (length - 1));
+
+			/* ROM Protect registers locked? */
+			if (spi_alt_cs & 0x20) {
+				read_prot = read_prot || (prot & 0x200);
+				write_prot = write_prot || (prot & 0x400);
+				msg_pdbg("FAILED! (ROM Protect registers are locked.)\n");
+				ret = -1;
+				continue;
+			} else {
+				/* Not locked. Clear the SpiProtectEn0 bit to
+				 * disable ROM Protect registers. The ROM
+				 * Protect registers are supposed to be
+				 * write-once and cleared only by a reset. Not
+				 * sure how SB600 code is supposed to work by
+				 * trying to modify the ROM protect registers,
+				 * but on FCH it is possible to
+				 * disable/deactivate the ROM Protect
+				 * registers by clearing SpiProtectEn0 if
+				 * SpiProtectLock is not set.
+				 */
+				mmio_writeb(spi_alt_cs & 0xf7, fch_spi + 0x1d);
+				spi_alt_cs = mmio_readb(fch_spi + 0x1d);
+				if (spi_alt_cs & 0x8) {
+					msg_pdbg("FAILED!\n");
+					read_prot = read_prot || (prot & 0x200);
+					write_prot = write_prot || (prot & 0x400);
+					ret = -1;
+					continue;
+				}
+			}
+			msg_pdbg("done.\n");
+		}
+
+		if (ret != 0)
+			msg_pwarn("ROM Protect registers are active%s\n", spi_alt_cs & 0x20 ? " and locked" : "");
+	}
+
+	if (write_prot) {
+		msg_pwarn("At least some flash regions are write protected. For write operations,\n"
+			  "you should use a flash layout and include only writable regions. See\n"
+			  "manpage for more details.\n");
+	}
+
+	if (read_prot) {
+		msg_pwarn("At least some flash regions are read protected. You have to use a flash\n"
+			  "layout and include only accessible regions. For write operations, you'll\n"
+			  "additionally need the --noverify-all switch. See manpage for more details.\n");
+	}
+
+	internal_buses_supported &= BUS_LPC | BUS_SPI;
+
+	ret = sb600_probe_spi(cfg, dev);
+
+	/* Read ROM strap override register. */
+	OUTB(0xca, 0xcd6);
+	reg = INB(0xcd7);
+	msg_pdbg("ROM strap override is %sactive", (reg & 0x04) ? "" : "not ");
+	if (reg & 0x04) {
+		switch (reg & 0x03) {
+		case 0x00:
+			msg_pdbg(": LPC");
+			break;
+		case 0x01:
+			msg_pdbg(": PCI (Reserved)");
+			break;
+		case 0x02:
+			msg_pdbg(": FWH (Reserved)");
+			break;
+		case 0x03:
+			msg_pdbg(": SPI");
+			break;
+		}
+	}
+	msg_pdbg("\n");
+
+	/* Force enable SPI ROM in SB600 PM register.
+	 * If we enable SPI ROM here, we have to disable it after we leave.
+	 * But how can we know which ROM we are going to handle? So we have
+	 * to trade off. We only access LPC ROM if we boot via LPC ROM. And
+	 * only SPI ROM if we boot via SPI ROM. If you want to access SPI on
+	 * boards with LPC straps, you have to use the code below.
+	 */
+	/*
+	OUTB(0xca, 0xcd6);
+	OUTB(0x0e, 0xcd7);
+	*/
+
+	return ret;
+}
+
 /* sets bit 0 in 0x6d */
 static int enable_flash_nvidia_common(const struct programmer_cfg *cfg, struct pci_dev *dev, const char *name)
 {
@@ -1779,8 +1914,8 @@ const struct penable chipset_enables[] = {
 	{0x1022, 0x3000, B_PFL,  OK,  "AMD", "Elan SC520",			get_flashbase_sc520},
 	{0x1022, 0x7440, B_PFL,  OK,  "AMD", "AMD-768",				enable_flash_amd_768_8111},
 	{0x1022, 0x7468, B_PFL,  OK,  "AMD", "AMD-8111",			enable_flash_amd_768_8111},
-	{0x1022, 0x780e, B_FLS,  OK,  "AMD", "FCH",				enable_flash_sb600},
-	{0x1022, 0x790e, B_FLS,  OK,  "AMD", "FP4",				enable_flash_sb600},
+	{0x1022, 0x780e, B_LS,   OK,  "AMD", "FCH",				enable_flash_fch},
+	{0x1022, 0x790e, B_LS,   OK,  "AMD", "FP4",				enable_flash_fch},
 	{0x1039, 0x0406, B_PFL,  NT,  "SiS", "501/5101/5501",			enable_flash_sis501},
 	{0x1039, 0x0496, B_PFL,  NT,  "SiS", "85C496+497",			enable_flash_sis85c496},
 	{0x1039, 0x0530, B_PFL,  OK,  "SiS", "530",				enable_flash_sis530},
