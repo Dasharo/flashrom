@@ -847,7 +847,7 @@ unsigned int get_next_write(const uint8_t *have, const uint8_t *want, unsigned i
 	case WRITE_GRAN_1056BYTES:
 		stride = 1056;
 		break;
-	case write_gran_64kbytes:
+	case WRITE_GRAN_64KBYTES:
 		stride = 64*KiB;
 		break;
 	default:

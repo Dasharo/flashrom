@@ -14625,7 +14625,7 @@ const struct flashchip flashchips[] = {
 		.page_size	= 256,
 		.feature_bits	= FEATURE_WRSR_WREN,
 		.tested		= TEST_OK_PREW,
-		.probe		= probe_spi_rdid,
+		.probe		= PROBE_SPI_RDID,
 		.probe_timing	= TIMING_ZERO,
 		.block_erasers	=
 		{
