@@ -32,11 +32,11 @@
 // Software Foundation.
 //
 
-use libflashrom::{Chip, Programmer};
+use libflashrom::{Chip, FlashromFlag, FlashromFlags, Programmer};
 
-use std::{cell::RefCell, convert::TryFrom, fs};
+use std::{cell::RefCell, convert::TryFrom, fs, path::Path};
 
-use crate::{FlashChip, FlashromError, ROMWriteSpecifics};
+use crate::{FlashChip, FlashromError};
 
 #[derive(Debug)]
 pub struct FlashromLib {
@@ -102,19 +102,17 @@ impl crate::Flashrom for FlashromLib {
     }
 
     fn wp_toggle(&self, en: bool) -> Result<bool, FlashromError> {
-        // TODO why does the cmd impl not do this?
-        // for cmd, range is only set for enable
-        // and disable is not sent for the wp_range command
-        self.wp_range((0, self.get_size()?), en)
+        let range = if en { (0, self.get_size()?) } else { (0, 0) };
+        self.wp_range(range, en)
     }
 
-    fn read_into_file(&self, path: &str) -> Result<(), FlashromError> {
+    fn read_into_file(&self, path: &Path) -> Result<(), FlashromError> {
         let buf = self.flashrom.borrow_mut().image_read(None)?;
         fs::write(path, buf).map_err(|error| error.to_string())?;
         Ok(())
     }
 
-    fn read_region_into_file(&self, path: &str, region: &str) -> Result<(), FlashromError> {
+    fn read_region_into_file(&self, path: &Path, region: &str) -> Result<(), FlashromError> {
         let mut layout = self.flashrom.borrow_mut().layout_read_fmap_from_rom()?;
         layout.include_region(region)?;
         let range = layout.get_region_range(region)?;
@@ -123,29 +121,55 @@ impl crate::Flashrom for FlashromLib {
         Ok(())
     }
 
-    fn write_from_file(&self, path: &str) -> Result<(), FlashromError> {
+    fn write_from_file(&self, path: &Path) -> Result<(), FlashromError> {
         let mut buf = fs::read(path).map_err(|error| error.to_string())?;
         self.flashrom.borrow_mut().image_write(&mut buf, None)?;
         Ok(())
     }
 
-    fn write_file_with_layout(&self, rws: &ROMWriteSpecifics) -> Result<bool, FlashromError> {
-        let buf = fs::read(rws.layout_file.unwrap()).map_err(|error| error.to_string())?;
+    fn write_from_file_region(
+        &self,
+        path: &Path,
+        region: &str,
+        layout: &Path,
+    ) -> Result<bool, FlashromError> {
+        let buf = fs::read(layout).map_err(|error| error.to_string())?;
         let buf = String::from_utf8(buf).unwrap();
         let mut layout: libflashrom::Layout = buf
             .parse()
             .map_err(|e: Box<dyn std::error::Error>| e.to_string())?;
-        layout.include_region(rws.name_file.unwrap())?;
-        let mut buf = fs::read(rws.write_file.unwrap()).map_err(|error| error.to_string())?;
+        layout.include_region(region)?;
+        let mut buf = fs::read(path).map_err(|error| error.to_string())?;
         self.flashrom
             .borrow_mut()
             .image_write(&mut buf, Some(layout))?;
         Ok(true)
     }
 
-    fn verify_from_file(&self, path: &str) -> Result<(), FlashromError> {
+    fn verify_from_file(&self, path: &Path) -> Result<(), FlashromError> {
         let buf = fs::read(path).map_err(|error| error.to_string())?;
         self.flashrom.borrow_mut().image_verify(&buf, None)?;
+        Ok(())
+    }
+
+    fn verify_region_from_file(&self, path: &Path, region: &str) -> Result<(), FlashromError> {
+        let mut layout = self.flashrom.borrow_mut().layout_read_fmap_from_rom()?;
+        layout.include_region(region)?;
+        let range = layout.get_region_range(region)?;
+        let region_data = fs::read(path).map_err(|error| error.to_string())?;
+        if region_data.len() != range.len() {
+            return Err(format!(
+                "verify region range ({}) does not match provided file size ({})",
+                range.len(),
+                region_data.len()
+            )
+            .into());
+        }
+        let mut buf = vec![0; self.get_size()? as usize];
+        buf[range].copy_from_slice(&region_data);
+        self.flashrom
+            .borrow_mut()
+            .image_verify(&buf, Some(layout))?;
         Ok(())
     }
 
@@ -156,5 +180,26 @@ impl crate::Flashrom for FlashromLib {
 
     fn can_control_hw_wp(&self) -> bool {
         self.fc.can_control_hw_wp()
+    }
+
+    fn set_flags(&self, flags: &FlashromFlags) -> () {
+        self.flashrom
+            .borrow_mut()
+            .flag_set(FlashromFlag::FlashromFlagForce, flags.force);
+        self.flashrom
+            .borrow_mut()
+            .flag_set(FlashromFlag::FlashromFlagForceBoardmismatch, flags.force_boardmismatch);
+        self.flashrom
+            .borrow_mut()
+            .flag_set(FlashromFlag::FlashromFlagVerifyAfterWrite, flags.verify_after_write);
+        self.flashrom
+            .borrow_mut()
+            .flag_set(FlashromFlag::FlashromFlagVerifyWholeChip, flags.verify_whole_chip);
+        self.flashrom
+            .borrow_mut()
+            .flag_set(FlashromFlag::FlashromFlagSkipUnreadableRegions, flags.skip_unreadable_regions);
+        self.flashrom
+            .borrow_mut()
+            .flag_set(FlashromFlag::FlashromFlagSkipUnwritableRegions, flags.skip_unwritable_regions);
     }
 }

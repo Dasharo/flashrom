@@ -81,7 +81,7 @@ struct nicintel_eeprom_data {
 	uint32_t eec;
 
 	/* Intel I210 variable(s) */
-	bool done_i20_write;
+	bool done_i210_write;
 };
 
 /*
@@ -115,8 +115,8 @@ static int nicintel_ee_probe_i210(struct flashctx *flash)
 	/* Emulated eeprom has a fixed size of 4 KB */
 	flash->chip->total_size = 4;
 	flash->chip->page_size = flash->chip->total_size * 1024;
-	flash->chip->tested = TEST_OK_PREW;
-	flash->chip->gran = write_gran_1byte_implicit_erase;
+	flash->chip->tested = TEST_OK_PREWB;
+	flash->chip->gran = WRITE_GRAN_1BYTE_IMPLICIT_ERASE;
 	flash->chip->block_erasers->eraseblocks[0].size = flash->chip->page_size;
 	flash->chip->block_erasers->eraseblocks[0].count = 1;
 
@@ -140,14 +140,14 @@ static int nicintel_ee_probe_82580(struct flashctx *flash)
 			flash->chip->total_size = 32;
 			break;
 		default:
-			msg_cerr("Unsupported chip size 0x%x\n", tmp);
+			msg_cerr("Unsupported chip size 0x%"PRIx32"\n", tmp);
 			return 0;
 		}
 	}
 
 	flash->chip->page_size = EE_PAGE_MASK + 1;
-	flash->chip->tested = TEST_OK_PREW;
-	flash->chip->gran = write_gran_1byte_implicit_erase;
+	flash->chip->tested = TEST_OK_PREWB;
+	flash->chip->gran = WRITE_GRAN_1BYTE_IMPLICIT_ERASE;
 	flash->chip->block_erasers->eraseblocks[0].size = (EE_PAGE_MASK + 1);
 	flash->chip->block_erasers->eraseblocks[0].count = (flash->chip->total_size * 1024) / (EE_PAGE_MASK + 1);
 
@@ -213,7 +213,7 @@ static int nicintel_ee_write_word_i210(uint8_t *eebar, unsigned int addr, uint16
 	eewr |= BIT(EEWR_CMDV);
 	pci_mmio_writel(eewr, eebar + EEWR);
 
-	programmer_delay(5);
+	default_delay(5);
 	int i;
 	for (i = 0; i < MAX_ATTEMPTS; i++)
 		if (pci_mmio_readl(eebar + EEWR) & BIT(EEWR_DONE))
@@ -225,7 +225,7 @@ static int nicintel_ee_write_i210(struct flashctx *flash, const uint8_t *buf,
 				  unsigned int addr, unsigned int len)
 {
 	struct nicintel_eeprom_data *opaque_data = flash->mst->opaque.data;
-	opaque_data->done_i20_write = true;
+	opaque_data->done_i210_write = true;
 
 	if (addr & 1) {
 		uint16_t data;
@@ -338,7 +338,7 @@ static int nicintel_ee_ready(uint8_t *eebar)
 		nicintel_ee_bitbang(eebar, 0x00, &rdsr);
 
 		nicintel_ee_bitset(eebar, EEC, EE_CS, 1);
-		programmer_delay(1);
+		default_delay(1);
 		if (!(rdsr & SPI_SR_WIP)) {
 			return 0;
 		}
@@ -379,7 +379,7 @@ static int nicintel_ee_write_82580(struct flashctx *flash, const uint8_t *buf, u
 		nicintel_ee_bitset(eebar, EEC, EE_CS, 0);
 		nicintel_ee_bitbang(eebar, JEDEC_WREN, NULL);
 		nicintel_ee_bitset(eebar, EEC, EE_CS, 1);
-		programmer_delay(1);
+		default_delay(1);
 
 		/* data */
 		nicintel_ee_bitset(eebar, EEC, EE_CS, 0);
@@ -394,7 +394,7 @@ static int nicintel_ee_write_82580(struct flashctx *flash, const uint8_t *buf, u
 				break;
 		}
 		nicintel_ee_bitset(eebar, EEC, EE_CS, 1);
-		programmer_delay(1);
+		default_delay(1);
 		if (nicintel_ee_ready(eebar))
 			goto out;
 	}
@@ -414,7 +414,7 @@ static int nicintel_ee_shutdown_i210(void *opaque_data)
 	struct nicintel_eeprom_data *data = opaque_data;
 	int ret = 0;
 
-	if (!data->done_i20_write)
+	if (!data->done_i210_write)
 		goto out;
 
 	uint32_t flup = pci_mmio_readl(data->nicintel_eebar + EEC);
@@ -528,7 +528,7 @@ static int nicintel_ee_init(const struct programmer_cfg *cfg)
 	data->nicintel_pci = dev;
 	data->nicintel_eebar = eebar;
 	data->eec = eec;
-	data->done_i20_write = false;
+	data->done_i210_write = false;
 
 	return register_opaque_master(mst, data);
 }

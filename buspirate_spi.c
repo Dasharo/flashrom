@@ -178,12 +178,9 @@ static struct spi_master spi_master_buspirate = {
 	.max_data_read	= MAX_DATA_UNSPECIFIED,
 	.max_data_write	= MAX_DATA_UNSPECIFIED,
 	.command	= NULL,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= default_spi_read,
 	.write_256	= default_spi_write_256,
-	.write_aai	= default_spi_write_aai,
 	.shutdown	= buspirate_spi_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 static const struct buspirate_speeds spispeeds[] = {
@@ -328,8 +325,10 @@ static int buspirate_spi_init(const struct programmer_cfg *cfg)
 	int spispeed = 0x7;
 	int serialspeed_index = -1;
 	int ret = 0;
+	bool hiz = false;
 	bool pullup = false;
 	bool psu = false;
+	bool aux = true;
 	unsigned char *bp_commbuf;
 	int bp_commbufsize;
 
@@ -372,23 +371,60 @@ static int buspirate_spi_init(const struct programmer_cfg *cfg)
 
 	tmp = extract_programmer_param_str(cfg, "pullups");
 	if (tmp) {
-		if (strcasecmp("on", tmp) == 0)
+		if (strcasecmp("on", tmp) == 0) {
 			pullup = true;
-		else if (strcasecmp("off", tmp) == 0)
+		} else if (strcasecmp("off", tmp) == 0) {
 			; // ignore
-		else
-			msg_perr("Invalid pullups state, not using them.\n");
+		} else {
+			msg_perr("Invalid pullups state. Use on/off.\n");
+			free(tmp);
+			return 1;
+		}
+	}
+	free(tmp);
+
+	tmp = extract_programmer_param_str(cfg, "hiz");
+	if (tmp) {
+		if (strcasecmp("on", tmp) == 0) {
+			hiz = true;
+		} else if (strcasecmp("off", tmp) == 0) {
+			if (pullup) {
+				msg_perr("Invalid combination: pullups=on & hiz=off at same time is not possible.\n");
+				free(tmp);
+				return 1;
+			} else {
+				; // ignore
+			}
+		} else {
+			msg_perr("Invalid hiz state. Use on/off.\n");
+			free(tmp);
+			return 1;
+		}
 	}
 	free(tmp);
 
 	tmp = extract_programmer_param_str(cfg, "psus");
 	if (tmp) {
-		if (strcasecmp("on", tmp) == 0)
+		if (strcasecmp("on", tmp) == 0) {
 			psu = true;
-		else if (strcasecmp("off", tmp) == 0)
+		} else if (strcasecmp("off", tmp) == 0) {
 			; // ignore
+		} else {
+			msg_perr("Invalid psus state. Use on/off.\n");
+			free(tmp);
+			return 1;
+		}
+	}
+	free(tmp);
+
+	tmp = extract_programmer_param_str(cfg, "aux");
+	if (tmp) {
+		if (strcasecmp("high", tmp) == 0)
+			; /* Default */
+		else if (strcasecmp("low", tmp) == 0)
+			aux = false;
 		else
-			msg_perr("Invalid psus state, not enabling.\n");
+			msg_perr("Invalid AUX state, driving high by default.\n");
 	}
 	free(tmp);
 
@@ -645,8 +681,8 @@ static int buspirate_spi_init(const struct programmer_cfg *cfg)
 		goto init_err_cleanup_exit;
 	}
 
-	/* Initial setup (SPI peripherals config): Enable power, CS high, AUX */
-	bp_commbuf[0] = 0x40 | 0x0b;
+	/* Initial setup (SPI peripherals config): Enable power, CS high */
+	bp_commbuf[0] = 0x40 | 0x09;
 	if (pullup) {
 		bp_commbuf[0] |= (1 << 2);
 		msg_pdbg("Enabling pull-up resistors.\n");
@@ -654,6 +690,12 @@ static int buspirate_spi_init(const struct programmer_cfg *cfg)
 	if (psu) {
 		bp_commbuf[0] |= (1 << 3);
 		msg_pdbg("Enabling PSUs.\n");
+	}
+	if (aux) {
+		bp_commbuf[0] |= (1 << 1);
+		msg_pdbg("Driving AUX high.\n");
+	} else {
+		msg_pdbg("Driving AUX low.\n");
 	}
 	ret = buspirate_sendrecv(bp_commbuf, 1, 1);
 	if (ret)
@@ -677,9 +719,9 @@ static int buspirate_spi_init(const struct programmer_cfg *cfg)
 
 	/* Set SPI config: output type, idle, clock edge, sample */
 	bp_commbuf[0] = 0x80 | 0xa;
-	if (pullup) {
+	if (pullup || hiz) {
 		bp_commbuf[0] &= ~(1 << 3);
-		msg_pdbg("Pull-ups enabled, so using HiZ pin output! (Open-Drain mode)\n");
+		msg_pdbg("Pull-ups or HiZ enabled, so using HiZ pin output! (Open-Drain mode)\n");
 	}
 	ret = buspirate_sendrecv(bp_commbuf, 1, 1);
 	if (ret)

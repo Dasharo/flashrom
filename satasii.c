@@ -46,7 +46,7 @@ static uint32_t satasii_wait_done(const uint8_t *bar)
 	int i = 0;
 	while ((ctrl_reg = pci_mmio_readl(bar)) & (1 << 25)) {
 		if (++i > 10000) {
-			msg_perr("%s: control register stuck at %08x, ignoring.\n",
+			msg_perr("%s: control register stuck at %08"PRIx32", ignoring.\n",
 				 __func__, pci_mmio_readl(bar));
 			break;
 		}
@@ -95,13 +95,7 @@ static int satasii_shutdown(void *par_data)
 
 static const struct par_master par_master_satasii = {
 	.chip_readb	= satasii_chip_readb,
-	.chip_readw	= fallback_chip_readw,
-	.chip_readl	= fallback_chip_readl,
-	.chip_readn	= fallback_chip_readn,
 	.chip_writeb	= satasii_chip_writeb,
-	.chip_writew	= fallback_chip_writew,
-	.chip_writel	= fallback_chip_writel,
-	.chip_writen	= fallback_chip_writen,
 	.shutdown	= satasii_shutdown,
 };
 

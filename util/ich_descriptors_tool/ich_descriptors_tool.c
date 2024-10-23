@@ -38,9 +38,9 @@
 
 static const char *const region_names[] = {
 	"Descriptor", "BIOS", "ME", "GbE", "Platform",
-	"Region5", "BIOS2", "Region7", "EC/BMC", "Region9",
-	"IE", "10GbE", "Region12", "Region13", "Region14",
-	"Region15"
+	"DevExp", "BIOS2", "Region7", "EC/BMC", "DevExp2",
+	"IE", "10GbE0", "10GbE1", "Region13", "Region14",
+	"PTT"
 };
 
 static void dump_file(const char *prefix, const uint32_t *dump, unsigned int len,
@@ -129,6 +129,7 @@ static void usage(char *argv[], const char *error)
 "\t- \"gemini\" for Intel's Gemini Lake SoC.\n"
 "\t- \"jasper\" for Intel's Jasper Lake SoC.\n"
 "\t- \"meteor\" for Intel's Meteor Lake SoC.\n"
+"\t- \"panther\" for Intel's Panther Lake SoC.\n"
 "\t- \"5\" or \"ibex\" for Intel's 5 series chipsets,\n"
 "\t- \"6\" or \"cougar\" for Intel's 6 series chipsets,\n"
 "\t- \"7\" or \"panther\" for Intel's 7 series chipsets.\n"
@@ -139,6 +140,7 @@ static void usage(char *argv[], const char *error)
 "\t- \"400\" or \"comet\" for Intel's 400 series chipsets.\n"
 "\t- \"500\" or \"tiger\" for Intel's 500 series chipsets.\n"
 "\t- \"600\" or \"alder\" for Intel's 600 series chipsets.\n"
+"\t- \"700\" or \"raptor\" for Intel's 700 series chipsets.\n"
 "If '-d' is specified some regions such as the BIOS image as seen by the CPU or\n"
 "the GbE blob that is required to initialize the GbE are also dumped to files.\n",
 	argv[0], argv[0]);
@@ -236,9 +238,11 @@ int main(int argc, char *argv[])
 		else if ((strcmp(csn, "500") == 0) ||
 			 (strcmp(csn, "tiger") == 0))
 			cs = CHIPSET_500_SERIES_TIGER_POINT;
-		else if (strcmp(csn, "600") == 0)
+		else if ((strcmp(csn, "600") == 0) ||
+			 (strcmp(csn, "alder") == 0))
 			cs = CHIPSET_600_SERIES_ALDER_POINT;
-		else if (strcmp(csn, "700") == 0)
+		else if ((strcmp(csn, "700") == 0) ||
+			 (strcmp(csn, "raptor") == 0))
 			cs = CHIPSET_700_SERIES_RAPTOR_POINT;
 		else if (strcmp(csn, "apollo") == 0)
 			cs = CHIPSET_APOLLO_LAKE;
@@ -250,6 +254,8 @@ int main(int argc, char *argv[])
 			cs = CHIPSET_ELKHART_LAKE;
 		else if (strcmp(csn, "meteor") == 0)
 			cs = CHIPSET_METEOR_LAKE;
+		else if (strcmp(csn, "panther") == 0)
+			cs = CHIPSET_PANTHER_LAKE;
 	}
 
 	ret = read_ich_descriptors_from_dump(buf, len, &cs, &desc);

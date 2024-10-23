@@ -456,12 +456,9 @@ static const struct spi_master spi_master_i2c_mediatek = {
 	// Leave room for 1-byte command and up to a 4-byte address.
 	.max_data_write	= I2C_SMBUS_BLOCK_MAX - 5,
 	.command	= mediatek_send_command,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= default_spi_read,
 	.write_256	= default_spi_write_256,
-	.write_aai	= default_spi_write_aai,
 	.shutdown	= mediatek_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 static int get_params(const struct programmer_cfg *cfg, bool *allow_brick)

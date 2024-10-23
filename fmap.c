@@ -47,14 +47,13 @@ static size_t fmap_size(const struct fmap *fmap)
 	return sizeof(*fmap) + (fmap->nareas * sizeof(struct fmap_area));
 }
 
+/* Make a best-effort assessment if the given fmap is real */
 static int is_valid_fmap(const struct fmap *fmap)
 {
 	if (memcmp(fmap, FMAP_SIGNATURE, strlen(FMAP_SIGNATURE)) != 0)
 		return 0;
 	/* strings containing the magic tend to fail here */
-	if (fmap->ver_major > FMAP_VER_MAJOR)
-		return 0;
-	if (fmap->ver_minor > FMAP_VER_MINOR)
+	if (fmap->ver_major != FMAP_VER_MAJOR)
 		return 0;
 	/* a basic consistency check: flash address space size should be larger
 	 * than the size of the fmap data structure */
@@ -167,7 +166,7 @@ static int fmap_lsearch_rom(struct fmap **fmap_out,
 		goto _finalize_ret;
 	}
 
-	ret = flashctx->chip->read(flashctx, buf + rom_offset, rom_offset, len);
+	ret = read_flash(flashctx, buf + rom_offset, rom_offset, len);
 	if (ret) {
 		msg_pdbg("Cannot read ROM contents.\n");
 		goto _free_ret;
@@ -232,7 +231,7 @@ static int fmap_bsearch_rom(struct fmap **fmap_out, struct flashctx *const flash
 
 			/* Read errors are considered non-fatal since we may
 			 * encounter locked regions and want to continue. */
-			if (flashctx->chip->read(flashctx, (uint8_t *)fmap, offset, sig_len)) {
+			if (read_flash(flashctx, (uint8_t *)fmap, offset, sig_len)) {
 				/*
 				 * Print in verbose mode only to avoid excessive
 				 * messages for benign errors. Subsequent error
@@ -245,7 +244,7 @@ static int fmap_bsearch_rom(struct fmap **fmap_out, struct flashctx *const flash
 			if (memcmp(fmap, FMAP_SIGNATURE, sig_len) != 0)
 				continue;
 
-			if (flashctx->chip->read(flashctx, (uint8_t *)fmap + sig_len,
+			if (read_flash(flashctx, (uint8_t *)fmap + sig_len,
 						offset + sig_len, sizeof(*fmap) - sig_len)) {
 				msg_cerr("Cannot read %zu bytes at offset %06zx\n",
 						sizeof(*fmap) - sig_len, offset + sig_len);
@@ -277,7 +276,7 @@ static int fmap_bsearch_rom(struct fmap **fmap_out, struct flashctx *const flash
 		goto _free_ret;
 	}
 
-	if (flashctx->chip->read(flashctx, (uint8_t *)fmap + sizeof(*fmap),
+	if (read_flash(flashctx, (uint8_t *)fmap + sizeof(*fmap),
 				offset + sizeof(*fmap), fmap_len - sizeof(*fmap))) {
 		msg_cerr("Cannot read %zu bytes at offset %06zx\n",
 				fmap_len - sizeof(*fmap), offset + sizeof(*fmap));

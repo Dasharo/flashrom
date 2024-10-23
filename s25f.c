@@ -21,6 +21,7 @@
  * TODO: Implement fancy hybrid sector architecture helpers.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "chipdrivers.h"
@@ -93,7 +94,7 @@ static int s25f_legacy_software_reset(const struct flashctx *flash)
 
 	/* Allow time for reset command to execute. The datasheet specifies
 	 * Trph = 35us, double that to be safe. */
-	programmer_delay(T_RPH * 2);
+	programmer_delay(flash, T_RPH * 2);
 
 	return 0;
 }
@@ -126,7 +127,7 @@ static int s25fs_software_reset(struct flashctx *flash)
 	}
 
 	/* Allow time for reset command to execute. Double tRPH to be safe. */
-	programmer_delay(T_RPH * 2);
+	programmer_delay(flash, T_RPH * 2);
 
 	return 0;
 }
@@ -160,7 +161,7 @@ static int s25f_poll_status(const struct flashctx *flash)
 			return -1;
 		}
 
-		programmer_delay(1000 * 10);
+		programmer_delay(flash, 1000 * 10);
 	}
 
 	return 0;
@@ -183,7 +184,7 @@ static int s25fs_read_cr(const struct flashctx *flash, uint32_t addr)
 
 	int result = spi_send_command(flash, sizeof(read_cr_cmd), 1, read_cr_cmd, &cfg);
 	if (result) {
-		msg_cerr("%s failed during command execution at address 0x%x\n",
+		msg_cerr("%s failed during command execution at address 0x%"PRIx32"\n",
 			__func__, addr);
 		return -1;
 	}
@@ -221,18 +222,21 @@ static int s25fs_write_cr(const struct flashctx *flash,
 
 	int result = spi_send_multicommand(flash, cmds);
 	if (result) {
-		msg_cerr("%s failed during command execution at address 0x%x\n",
+		msg_cerr("%s failed during command execution at address 0x%"PRIx32"\n",
 			__func__, addr);
 		return -1;
 	}
 
-	programmer_delay(T_W);
+	programmer_delay(flash, T_W);
 	return s25f_poll_status(flash);
 }
 
-static int s25fs_restore_cr3nv(struct flashctx *flash, uint8_t cfg)
+static int s25fs_restore_cr3nv(struct flashctx *flash, void *data)
 {
 	int ret = 0;
+
+	uint8_t cfg = *(uint8_t *)data;
+	free(data);
 
 	msg_cdbg("Restoring CR3NV value to 0x%02x\n", cfg);
 	ret |= s25fs_write_cr(flash, CR3NV_ADDR, cfg);
@@ -285,8 +289,15 @@ int s25fs_block_erase_d8(struct flashctx *flash, unsigned int addr, unsigned int
 			msg_cdbg("\n%s: CR3NV updated (0x%02x -> 0x%02x)\n",
 					__func__, cfg,
 					s25fs_read_cr(flash, CR3NV_ADDR));
+
 			/* Restore CR3V when flashrom exits */
-			register_chip_restore(s25fs_restore_cr3nv, flash, cfg);
+			uint8_t *data = calloc(1, sizeof(uint8_t));
+			if (!data) {
+				msg_cerr("Out of memory!\n");
+				return 1;
+			}
+			*data = cfg;
+			register_chip_restore(s25fs_restore_cr3nv, flash, data);
 		}
 
 		cr3nv_checked = 1;
@@ -299,7 +310,7 @@ int s25fs_block_erase_d8(struct flashctx *flash, unsigned int addr, unsigned int
 		return result;
 	}
 
-	programmer_delay(S25FS_T_SE);
+	programmer_delay(flash, S25FS_T_SE);
 	return s25f_poll_status(flash);
 }
 
@@ -337,7 +348,7 @@ int s25fl_block_erase(struct flashctx *flash, unsigned int addr, unsigned int bl
 		return result;
 	}
 
-	programmer_delay(S25FL_T_SE);
+	programmer_delay(flash, S25FL_T_SE);
 	return s25f_poll_status(flash);
 }
 

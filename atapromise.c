@@ -71,7 +71,7 @@ static void atapromise_limit_chip(struct flashchip *chip, size_t rom_size)
 	for (i = 0; i < NUM_ERASEFUNCTIONS; ++i) {
 		if (chip->block_erasers[i].eraseblocks[0].size != size) {
 			chip->block_erasers[i].eraseblocks[0].count = 0;
-			chip->block_erasers[i].block_erase = NULL;
+			chip->block_erasers[i].block_erase = NO_BLOCK_ERASE_FUNC;
 		} else {
 			chip->block_erasers[i].eraseblocks[0].size = rom_size;
 			usable_erasers++;
@@ -113,13 +113,7 @@ static int atapromise_shutdown(void *par_data)
 
 static const struct par_master par_master_atapromise = {
 	.chip_readb	= atapromise_chip_readb,
-	.chip_readw	= fallback_chip_readw,
-	.chip_readl	= fallback_chip_readl,
-	.chip_readn	= fallback_chip_readn,
 	.chip_writeb	= atapromise_chip_writeb,
-	.chip_writew	= fallback_chip_writew,
-	.chip_writel	= fallback_chip_writel,
-	.chip_writen	= fallback_chip_writen,
 	.shutdown	= atapromise_shutdown,
 };
 
