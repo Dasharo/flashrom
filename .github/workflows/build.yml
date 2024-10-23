@@ -23,7 +23,9 @@ jobs:
           sudo apt-get install -y git build-essential debhelper pkg-config libpci-dev libusb-1.0-0-dev libftdi1-dev meson
 
       - name: Build Flashrom
-        run: make
+        run: |
+          meson setup builddir
+          meson compile -C builddir
 
       - name: Save Flashrom binary as artifact
         run: |
