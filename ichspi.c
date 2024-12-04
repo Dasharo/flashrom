@@ -1289,6 +1289,19 @@ struct hwseq_data {
 	struct fd_region fd_regions[MAX_FD_REGIONS];
 };
 
+#define MAX_PR_REGISTERS 6
+struct pr_register {
+	enum ich_access_protection level;
+	uint32_t base;
+	uint32_t limit;
+};
+
+struct _pr_access {
+	uint8_t count;
+	struct pr_register registers[MAX_PR_REGISTERS];
+};
+struct _pr_access pr_access;
+
 static struct hwseq_data *get_hwseq_data_from_context(const struct flashctx *flash)
 {
 	return flash->mst->opaque.data;
@@ -1464,6 +1477,17 @@ static void ich_get_region(const struct flashctx *flash, unsigned int addr, stru
 			region->end = limit;
 			region->read_prot  = (level == LOCKED) || (level == READ_PROT);
 			region->write_prot = (level == LOCKED) || (level == WRITE_PROT);
+			if (region->write_prot != true) {
+				for (ssize_t pr = 0; pr < pr_access.count; pr++) {
+					struct pr_register pr_reg = pr_access.registers[pr];
+					if (pr_reg.level == WRITE_PROT &&
+						region->start < pr_reg.base + pr_reg.limit && pr_reg.base <= region->end)
+					{
+						region->write_prot = true;
+						break;
+					}
+				}
+			}
 			break;
 		}
 	}
@@ -1950,28 +1974,32 @@ static enum ich_access_protection ich9_handle_region_access(struct fd_region *fd
 #define ICH_PR_PERMS(pr)	(((~((pr) >> PR_RP_OFF) & 1) << 0) | \
 				 ((~((pr) >> PR_WP_OFF) & 1) << 1))
 
-static enum ich_access_protection ich9_handle_pr(const size_t reg_pr0, unsigned int i)
+static struct pr_register ich9_handle_pr(const size_t reg_pr0, unsigned int i)
 {
 	uint8_t off = reg_pr0 + (i * 4);
 	uint32_t pr = mmio_readl(ich_spibar + off);
 	unsigned int rwperms_idx = ICH_PR_PERMS(pr);
-	enum ich_access_protection rwperms = access_perms_to_protection[rwperms_idx];
+	struct pr_register pr_reg = {
+		.level = access_perms_to_protection[rwperms_idx],
+		.base = ICH_FREG_BASE(pr),
+		.limit = ICH_FREG_LIMIT(pr),
+	};
 
 	/* From 5 on we have GPR registers and start from 0 again. */
 	const char *const prefix = i >= 5 ? "G" : "";
 	if (i >= 5)
 		i -= 5;
 
-	if (rwperms == NO_PROT) {
+	if (pr_reg.level == NO_PROT) {
 		msg_pdbg2("0x%02"PRIX8": 0x%08"PRIx32" (%sPR%u is unused)\n", off, pr, prefix, i);
-		return NO_PROT;
+		return pr_reg;
 	}
 
 	msg_pdbg("0x%02"PRIX8": 0x%08"PRIx32" ", off, pr);
 	msg_pwarn("%sPR%u: Warning: 0x%08"PRIx32"-0x%08"PRIx32" is %s.\n", prefix, i, ICH_FREG_BASE(pr),
-		  ICH_FREG_LIMIT(pr), access_names[rwperms]);
+		  ICH_FREG_LIMIT(pr), access_names[pr_reg.level]);
 
-	return rwperms;
+	return pr_reg;
 }
 
 /* Set/Clear the read and write protection enable bits of PR register @i
@@ -2170,6 +2198,7 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 	size_t num_freg, num_pr, reg_pr0;
 	struct hwseq_data hwseq_data = { 0 };
 	init_chipset_properties(&swseq_data, &hwseq_data, &num_freg, &num_pr, &reg_pr0, ich_gen);
+	pr_access.count = num_pr;
 
 	int ret = get_ich_spi_mode_param(cfg, &ich_spi_mode);
 	if (ret)
@@ -2243,7 +2272,8 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 		/* if not locked down try to disable PR locks first */
 		if (!ichspi_lock)
 			ich9_set_pr(reg_pr0, i, 0, 0);
-		ich_spi_rw_restricted |= ich9_handle_pr(reg_pr0, i);
+		pr_access.registers[i] = ich9_handle_pr(reg_pr0, i);
+		ich_spi_rw_restricted |= pr_access.registers[i].level;
 	}
 
 	switch (ich_spi_rw_restricted) {

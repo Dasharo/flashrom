@@ -1738,6 +1738,38 @@ warn_out:
 	return ret;
 }
 
+static int write_protect_check(struct flashctx *flash) {
+	bool check_wp = false;
+	size_t wp_start, wp_len;
+	enum flashrom_wp_mode mode;
+	struct flashrom_wp_cfg *cfg = NULL;
+	const struct romentry *entry = NULL;
+	const struct flashrom_layout *const layout = get_layout(flash);
+
+	if (flashrom_wp_cfg_new(&cfg) == FLASHROM_WP_OK &&
+		flashrom_wp_read_cfg(cfg, flash) == FLASHROM_WP_OK )
+	{
+		flashrom_wp_get_range(&wp_start, &wp_len, cfg);
+		mode = flashrom_wp_get_mode(cfg);
+		if (mode != FLASHROM_WP_MODE_DISABLED && wp_len != 0)
+			check_wp = true;
+	}
+	flashrom_wp_cfg_release(cfg);
+
+	while ((entry = layout_next_included(layout, entry))) {
+		if ((!flash->flags.skip_unwritable_regions &&
+			check_for_unwritable_regions(flash, entry->region.start, entry->region.end - entry->region.start)
+			)
+			||
+			(check_wp && entry->region.start < wp_start + wp_len && wp_start <= entry->region.end))
+		{
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int prepare_flash_access(struct flashctx *const flash,
 			 const bool read_it, const bool write_it,
 			 const bool erase_it, const bool verify_it)
@@ -1750,6 +1782,13 @@ int prepare_flash_access(struct flashctx *const flash,
 	if (layout_sanity_checks(flash)) {
 		msg_cerr("Requested regions can not be handled. Aborting.\n");
 		return 1;
+	}
+
+	if ((write_it || erase_it) && !flash->flags.force) {
+		if(write_protect_check(flash)) {
+			msg_cerr("Requested regions are write protected. Aborting.\n");
+			return 1;
+		}
 	}
 
 	if (map_flash(flash) != 0)
