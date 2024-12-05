@@ -236,9 +236,11 @@ void w836xx_ext_enter(uint16_t port);
 void w836xx_ext_leave(uint16_t port);
 void probe_superio_winbond(void);
 int it8705f_write_enable(uint8_t port);
-void board_handle_before_superio(void);
-void board_handle_before_laptop(void);
-int board_flash_enable(const char *vendor, const char *model, const char *cb_vendor, const char *cb_model);
+void board_handle_before_superio(struct board_cfg *cfg, bool force_boardenable);
+void board_handle_before_laptop(struct board_cfg *cfg, bool force_boardenable);
+int board_flash_enable(struct board_cfg *cfg,
+		const char *vendor, const char *model, const char *cb_vendor, const char *cb_model,
+		bool force_boardenable);
 
 /* chipset_enable.c */
 int chipset_flash_enable(const struct programmer_cfg *cfg);

@@ -1486,14 +1486,14 @@ static int enable_flash_fch(const struct programmer_cfg *cfg, struct pci_dev *de
 	uint32_t spibar = pci_read_long(dev, 0xa0) & 0xffffffc0; /* bits 31:6, SB600 has 31:5 */
 	if (spibar == 0) {
 		msg_perr("Error: Invalid SPI BASE\n");
-		return ERROR_FATAL;
+		return ERROR_FLASHROM_FATAL;
 	}
 
 	/* Physical memory has to be mapped at page (4k) boundaries. */
 	fch_spi = rphysmap("FCH SPIBASE", spibar & 0xfffff000, 0x1000);
 	if (fch_spi == NULL) {
 		msg_perr("Error: Failed to map SPI BASE\n");
-		return ERROR_FATAL;
+		return ERROR_FLASHROM_FATAL;
 	}
 
 	/* The low bits of the SPI base address are used as offset into

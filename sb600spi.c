@@ -647,7 +647,7 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 
 	enum amd_chipset amd_gen = determine_generation(dev);
 	if (amd_gen == CHIPSET_AMD_UNKNOWN)
-		return ERROR_NONFATAL;
+		return ERROR_FLASHROM_NONFATAL;
 
 	/* Read SPI_BaseAddr */
 	tmp = pci_read_long(dev, 0xa0);
@@ -671,10 +671,6 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 	 * the mapped page.
 	 */
 	sb600_spibar += tmp & 0xfff;
-
-	enum amd_chipset amd_gen = determine_generation(dev);
-	if (amd_gen == CHIPSET_AMD_UNKNOWN)
-		return ERROR_FLASHROM_NONFATAL;
 
 	/* How to read the following table and similar ones in this file:
 	 * "?" means we have no datasheet for this chipset generation or it doesn't have any relevant info.
@@ -761,7 +757,7 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 		 * errors with illegal access bit
 		 */
 		if (amd_gen < CHIPSET_YANGTZE)
-			return ERROR_NONFATAL;
+			return ERROR_FLASHROM_NONFATAL;
 	}
 
 	if (amd_gen >= CHIPSET_SB89XX) {
