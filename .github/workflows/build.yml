@@ -27,6 +27,10 @@ jobs:
           meson setup builddir
           meson compile -C builddir
 
+      - name: Test Flashrom
+        run: |
+          meson test -C builddir
+
       - name: Save Flashrom binary as artifact
         run: |
           mkdir artifacts
