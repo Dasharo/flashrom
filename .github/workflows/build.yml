@@ -30,7 +30,7 @@ jobs:
       - name: Save Flashrom binary as artifact
         run: |
           mkdir artifacts
-          mv flashrom artifacts/
+          mv builddir/flashrom artifacts/
         continue-on-error: true  # Allow workflow to continue even if 'flashrom' doesn't exist
 
       - name: Upload artifact
