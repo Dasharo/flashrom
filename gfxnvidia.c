@@ -96,13 +96,7 @@ static int gfxnvidia_shutdown(void *par_data)
 
 static const struct par_master par_master_gfxnvidia = {
 	.chip_readb	= gfxnvidia_chip_readb,
-	.chip_readw	= fallback_chip_readw,
-	.chip_readl	= fallback_chip_readl,
-	.chip_readn	= fallback_chip_readn,
 	.chip_writeb	= gfxnvidia_chip_writeb,
-	.chip_writew	= fallback_chip_writew,
-	.chip_writel	= fallback_chip_writel,
-	.chip_writen	= fallback_chip_writen,
 	.shutdown	= gfxnvidia_shutdown,
 };
 
@@ -121,7 +115,7 @@ static int gfxnvidia_init(const struct programmer_cfg *cfg)
 		return 1;
 
 	io_base_addr += 0x300000;
-	msg_pinfo("Detected NVIDIA I/O base address: 0x%x.\n", io_base_addr);
+	msg_pinfo("Detected NVIDIA I/O base address: 0x%"PRIx32".\n", io_base_addr);
 
 	bar = rphysmap("NVIDIA", io_base_addr, GFXNVIDIA_MEMMAP_SIZE);
 	if (bar == ERROR_PTR)

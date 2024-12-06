@@ -316,7 +316,7 @@ static int dediprog_set_spi_voltage(libusb_device_handle *dediprog_handle, int m
 
 	if (voltage_selector == 0) {
 		/* Wait some time as the original driver does. */
-		programmer_delay(200 * 1000);
+		default_delay(200 * 1000);
 	}
 	ret = dediprog_write(dediprog_handle, CMD_SET_VCC, voltage_selector, 0, NULL, 0);
 	if (ret != 0x0) {
@@ -326,7 +326,7 @@ static int dediprog_set_spi_voltage(libusb_device_handle *dediprog_handle, int m
 	}
 	if (voltage_selector != 0) {
 		/* Wait some time as the original driver does. */
-		programmer_delay(200 * 1000);
+		default_delay(200 * 1000);
 	}
 	return 0;
 }
@@ -593,7 +593,7 @@ err:
 static int dediprog_spi_bulk_write(struct flashctx *flash, const uint8_t *buf, unsigned int chunksize,
 				   unsigned int start, unsigned int len, uint8_t dedi_spi_cmd)
 {
-	/* USB transfer size must be 512, other sizes will NOT work at all.
+	/* USB transfer size must be 256, other sizes will NOT work at all.
 	 * chunksize is the real data size per USB bulk transfer. The remaining
 	 * space in a USB bulk transfer must be filled with 0xff padding.
 	 */
@@ -1034,12 +1034,10 @@ static struct spi_master spi_master_dediprog = {
 	.max_data_read	= 16, /* 18 seems to work fine as well, but 19 times out sometimes with FW 5.15. */
 	.max_data_write	= 16,
 	.command	= dediprog_spi_send_command,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= dediprog_spi_read,
 	.write_256	= dediprog_spi_write_256,
 	.write_aai	= dediprog_spi_write_aai,
 	.shutdown	= dediprog_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 /*

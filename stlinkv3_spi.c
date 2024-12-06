@@ -115,7 +115,7 @@ enum spi_nss_level {
 #define USB_TIMEOUT_IN_MS					5000
 
 static const struct dev_entry devs_stlinkv3_spi[] = {
-	{0x0483, 0x374E, NT, "STMicroelectronics", "STLINK-V3E"},
+	{0x0483, 0x374E, BAD, "STMicroelectronics", "STLINK-V3E"},
 	{0x0483, 0x374F, OK, "STMicroelectronics", "STLINK-V3S"},
 	{0x0483, 0x3753, OK, "STMicroelectronics", "STLINK-V3 dual VCP"},
 	{0x0483, 0x3754, NT, "STMicroelectronics", "STLINK-V3 no MSD"},
@@ -466,12 +466,9 @@ static const struct spi_master spi_programmer_stlinkv3 = {
 	.max_data_read	= UINT16_MAX,
 	.max_data_write	= UINT16_MAX,
 	.command	= stlinkv3_spi_transmit,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= default_spi_read,
 	.write_256	= default_spi_write_256,
-	.write_aai	= default_spi_write_aai,
 	.shutdown	= stlinkv3_spi_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 static int stlinkv3_spi_init(const struct programmer_cfg *cfg)
@@ -482,7 +479,8 @@ static int stlinkv3_spi_init(const struct programmer_cfg *cfg)
 	int ret = 1;
 	int devIndex = 0;
 	struct libusb_context *usb_ctx;
-	libusb_device_handle *stlinkv3_handle;
+	/* Initialize stlinkv3_handle to NULL for suppressing scan-build false positive core.uninitialized.Branch */
+	libusb_device_handle *stlinkv3_handle = NULL;
 	struct stlinkv3_spi_data *stlinkv3_data;
 
 	if (libusb_init(&usb_ctx)) {
@@ -500,8 +498,14 @@ static int stlinkv3_spi_init(const struct programmer_cfg *cfg)
 								devs_stlinkv3_spi[devIndex].vendor_id,
 								devs_stlinkv3_spi[devIndex].device_id,
 								param_str);
-		if (stlinkv3_handle)
+		if (stlinkv3_handle) {
+			if (devs_stlinkv3_spi[devIndex].status == BAD) {
+				msg_perr("The STLINK-V3 Mini/MiniE does not support the bridge interface\n");
+				free(param_str);
+				goto init_err_exit;
+			}
 			break;
+		}
 		devIndex++;
 	}
 

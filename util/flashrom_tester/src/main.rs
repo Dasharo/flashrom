@@ -41,7 +41,6 @@ mod logger;
 use clap::{App, Arg};
 use flashrom::{FlashChip, Flashrom, FlashromCmd, FlashromLib};
 use flashrom_tester::{tester, tests};
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
 pub mod built_info {
@@ -83,20 +82,13 @@ fn main() {
         .arg(
             Arg::with_name("ccd_target_type")
                 .required(true)
-                .possible_values(&["host", "ec", "servo"]),
+                .possible_values(&["internal"]),
         )
         .arg(
             Arg::with_name("print-layout")
                 .short("l")
                 .long("print-layout")
                 .help("Print the layout file's contents before running tests"),
-        )
-        .arg(
-            Arg::with_name("log-file")
-                .short("o")
-                .long("log-file")
-                .takes_value(true)
-                .help("Write logs to a file rather than stdout"),
         )
         .arg(
             Arg::with_name("log_debug")
@@ -121,10 +113,7 @@ fn main() {
         )
         .get_matches();
 
-    logger::init(
-        matches.value_of_os("log-file").map(PathBuf::from),
-        matches.is_present("log_debug"),
-    );
+    logger::init(matches.is_present("log_debug"));
     debug!("Args parsed and logging initialized OK");
 
     debug!("Collecting crossystem info");

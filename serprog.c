@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2009, 2011 Urja Rannikko <urjaman@gmail.com>
  * Copyright (C) 2009 Carl-Daniel Hailfinger
+ * Copyright (C) 2024 Riku Viitanen <riku.viitanen@protonmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,6 +64,7 @@
 #define S_CMD_O_SPIOP		0x13	/* Perform SPI operation.			*/
 #define S_CMD_S_SPI_FREQ	0x14	/* Set SPI clock frequency			*/
 #define S_CMD_S_PIN_STATE	0x15	/* Enable/disable output drivers		*/
+#define S_CMD_S_SPI_CS		0x16	/* Set SPI chip select to use			*/
 
 #define MSGHEADER "serprog: "
 
@@ -157,7 +159,7 @@ static int sp_synchronize(void)
 		goto err_out;
 	}
 	/* A second should be enough to get all the answers to the buffer */
-	internal_delay(1000 * 1000);
+	default_delay(1000 * 1000);
 	sp_flush_incoming();
 
 	/* Then try up to 8 times to send syncnop and get the correct special *
@@ -453,17 +455,17 @@ static void *serprog_map(const char *descr, uintptr_t phys_addr, size_t len)
 	return NULL;
 }
 
+static void serprog_delay(const struct flashctx *flash, unsigned int usecs);
+
 static struct spi_master spi_master_serprog = {
 	.map_flash_region	= serprog_map,
 	.features	= SPI_MASTER_4BA,
 	.max_data_read	= MAX_DATA_READ_UNLIMITED,
 	.max_data_write	= MAX_DATA_WRITE_UNLIMITED,
 	.command	= serprog_spi_send_command,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= default_spi_read,
 	.write_256	= default_spi_write_256,
-	.write_aai	= default_spi_write_aai,
-	.probe_opcode	= default_spi_probe_opcode,
+	.delay		= serprog_delay,
 };
 
 static int sp_check_opbuf_usage(int bytes_to_be_added)
@@ -568,16 +570,33 @@ static void serprog_chip_readn(const struct flashctx *flash, uint8_t * buf,
 		sp_do_read_n(&(buf[addrm-addr]), addrm, lenm); // FIXME: return error
 }
 
+static void serprog_delay(const struct flashctx *flash, unsigned int usecs)
+{
+	unsigned char buf[4];
+	msg_pspew("%s usecs=%d\n", __func__, usecs);
+	if (!sp_check_commandavail(S_CMD_O_DELAY)) {
+		msg_pdbg2("serprog_delay used, but programmer doesn't support delays natively - emulating\n");
+		default_delay(usecs);
+		return;
+	}
+	if ((sp_max_write_n) && (sp_write_n_bytes))
+		sp_pass_writen();
+	sp_check_opbuf_usage(5);
+	buf[0] = ((usecs >> 0) & 0xFF);
+	buf[1] = ((usecs >> 8) & 0xFF);
+	buf[2] = ((usecs >> 16) & 0xFF);
+	buf[3] = ((usecs >> 24) & 0xFF);
+	sp_stream_buffer_op(S_CMD_O_DELAY, 4, buf);
+	sp_opbuf_usage += 5;
+	sp_prev_was_write = 0;
+}
+
 static const struct par_master par_master_serprog = {
 	.map_flash_region	= serprog_map,
 	.chip_readb	= serprog_chip_readb,
-	.chip_readw	= fallback_chip_readw,
-	.chip_readl	= fallback_chip_readl,
 	.chip_readn	= serprog_chip_readn,
 	.chip_writeb	= serprog_chip_writeb,
-	.chip_writew	= fallback_chip_writew,
-	.chip_writel	= fallback_chip_writel,
-	.chip_writen	= fallback_chip_writen,
+	.delay		= serprog_delay,
 };
 
 static enum chipbustype serprog_buses_supported = BUS_NONE;
@@ -725,7 +744,7 @@ static int serprog_init(const struct programmer_cfg *cfg)
 	/* Check for the minimum operational set of commands. */
 	if (serprog_buses_supported & BUS_SPI) {
 		uint8_t bt = BUS_SPI;
-		char *spispeed;
+		char *spispeed, *cs;
 		if (sp_check_commandavail(S_CMD_O_SPIOP) == 0) {
 			msg_perr("Error: SPI operation not supported while the "
 				 "bustype is SPI\n");
@@ -805,6 +824,33 @@ static int serprog_init(const struct programmer_cfg *cfg)
 			}
 		}
 		free(spispeed);
+		cs = extract_programmer_param_str(cfg, "cs");
+		if (cs && strlen(cs)) {
+			char *endptr = NULL;
+			errno = 0;
+			unsigned long cs_num = strtoul(cs, &endptr, 0);
+			if (errno || *endptr || cs_num > 255) {
+				msg_perr("Error: Invalid chip select requested! "
+				         "Only 0-255 are valid.\n");
+				free(cs);
+				goto init_err_cleanup_exit;
+			}
+			if (!sp_check_commandavail(S_CMD_S_SPI_CS)) {
+				msg_perr("Error: Setting SPI chip select is not supported!\n");
+				free(cs);
+				goto init_err_cleanup_exit;
+			}
+			msg_pdbg(MSGHEADER "Requested to use chip select %lu.\n", cs_num);
+			uint8_t cs_num8 = cs_num;
+			if (sp_docommand(S_CMD_S_SPI_CS, 1, &cs_num8, 0, NULL)) {
+				msg_perr("Error: Chip select %u not supported "
+				         "by programmer!\n", cs_num8);
+				free(cs);
+				goto init_err_cleanup_exit;
+			}
+		}
+		free(cs);
+
 		bt = serprog_buses_supported;
 		if (sp_docommand(S_CMD_S_BUSTYPE, 1, &bt, 0, NULL))
 			goto init_err_cleanup_exit;
@@ -941,32 +987,10 @@ init_err_cleanup_exit:
 	return 1;
 }
 
-static void serprog_delay(unsigned int usecs)
-{
-	unsigned char buf[4];
-	msg_pspew("%s usecs=%d\n", __func__, usecs);
-	if (!sp_check_commandavail(S_CMD_O_DELAY)) {
-		msg_pdbg2("serprog_delay used, but programmer doesn't support delays natively - emulating\n");
-		internal_delay(usecs);
-		return;
-	}
-	if ((sp_max_write_n) && (sp_write_n_bytes))
-		sp_pass_writen();
-	sp_check_opbuf_usage(5);
-	buf[0] = ((usecs >> 0) & 0xFF);
-	buf[1] = ((usecs >> 8) & 0xFF);
-	buf[2] = ((usecs >> 16) & 0xFF);
-	buf[3] = ((usecs >> 24) & 0xFF);
-	sp_stream_buffer_op(S_CMD_O_DELAY, 4, buf);
-	sp_opbuf_usage += 5;
-	sp_prev_was_write = 0;
-}
-
 const struct programmer_entry programmer_serprog = {
 	.name			= "serprog",
 	.type			= OTHER,
 				/* FIXME */
 	.devs.note		= "All programmer devices speaking the serprog protocol\n",
 	.init			= serprog_init,
-	.delay			= serprog_delay,
 };

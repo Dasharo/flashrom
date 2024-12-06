@@ -312,6 +312,7 @@ pub enum WPError {
     WpErrRangeUnsupported,
     WpErrModeUnsupported,
     WpErrRangeListUnavailable,
+    WpErrUnsupportedState,
     WpErrUnknown(libflashrom_sys::flashrom_wp_result),
 }
 
@@ -340,6 +341,9 @@ impl From<libflashrom_sys::flashrom_wp_result> for WPError {
             }
             libflashrom_sys::flashrom_wp_result::FLASHROM_WP_ERR_RANGE_LIST_UNAVAILABLE => {
                 WPError::WpErrRangeListUnavailable
+            }
+            libflashrom_sys::flashrom_wp_result::FLASHROM_WP_ERR_UNSUPPORTED_STATE => {
+                WPError::WpErrUnsupportedState
             }
             _ => WPError::WpErrUnknown(e), // this could also be a panic
         }
@@ -466,6 +470,87 @@ impl Drop for Programmer {
         unsafe {
             libflashrom_sys::flashrom_programmer_shutdown(null_mut());
         }
+    }
+}
+
+/// A translation of the flashrom_flag type
+///
+/// Keep this list in sync with libflashrom.h
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum FlashromFlag {
+    FlashromFlagForce,
+    FlashromFlagForceBoardmismatch,
+    FlashromFlagVerifyAfterWrite,
+    FlashromFlagVerifyWholeChip,
+    FlashromFlagSkipUnreadableRegions,
+    FlashromFlagSkipUnwritableRegions,
+}
+
+impl From<FlashromFlag> for libflashrom_sys::flashrom_flag {
+    fn from(e: FlashromFlag) -> Self {
+        match e {
+            FlashromFlag::FlashromFlagForce => libflashrom_sys::flashrom_flag::FLASHROM_FLAG_FORCE,
+            FlashromFlag::FlashromFlagForceBoardmismatch => {
+                libflashrom_sys::flashrom_flag::FLASHROM_FLAG_FORCE_BOARDMISMATCH
+            }
+            FlashromFlag::FlashromFlagVerifyAfterWrite => {
+                libflashrom_sys::flashrom_flag::FLASHROM_FLAG_VERIFY_AFTER_WRITE
+            }
+            FlashromFlag::FlashromFlagVerifyWholeChip => {
+                libflashrom_sys::flashrom_flag::FLASHROM_FLAG_VERIFY_WHOLE_CHIP
+            }
+            FlashromFlag::FlashromFlagSkipUnreadableRegions => {
+                libflashrom_sys::flashrom_flag::FLASHROM_FLAG_SKIP_UNREADABLE_REGIONS
+            }
+            FlashromFlag::FlashromFlagSkipUnwritableRegions => {
+                libflashrom_sys::flashrom_flag::FLASHROM_FLAG_SKIP_UNWRITABLE_REGIONS
+            }
+            e => panic!("Unexpected FlashromFlag: {:?}", e),
+        }
+    }
+}
+
+/// Various flags of the flashrom context
+///
+/// Keep the struct in sync with the flags in flash.h
+#[derive(Debug)]
+pub struct FlashromFlags {
+    pub force: bool,
+    pub force_boardmismatch: bool,
+    pub verify_after_write: bool,
+    pub verify_whole_chip: bool,
+    pub skip_unreadable_regions: bool,
+    pub skip_unwritable_regions: bool,
+}
+
+/// Keep the default values in sync with cli_classic.c
+impl Default for FlashromFlags {
+    fn default() -> Self {
+        Self {
+            force: false,
+            force_boardmismatch: false,
+            verify_after_write: true,
+            verify_whole_chip: true,
+            // These flags are introduced to address issues related to CSME locking parts. Setting
+            // them to false as default values
+            skip_unreadable_regions: false,
+            skip_unwritable_regions: false,
+        }
+    }
+}
+
+impl fmt::Display for FlashromFlags {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "FlashromFlags {{ force: {}, force_boardmismatch: {}, verify_after_write: {}, verify_whole_chip: {}, skip_unreadable_regions: {}, skip_unwritable_regions: {} }}",
+            self.force,
+            self.force_boardmismatch,
+            self.verify_after_write,
+            self.verify_whole_chip,
+            self.skip_unreadable_regions,
+            self.skip_unwritable_regions,
+        )
     }
 }
 
@@ -701,6 +786,11 @@ impl Chip {
             })
         }
     }
+
+    /// Set a flag in the given flash context
+    pub fn flag_set(&mut self, flag: FlashromFlag, value: bool) -> () {
+        unsafe { libflashrom_sys::flashrom_flag_set(self.ctx.as_mut(), flag.into(), value) }
+    }
 }
 
 impl Drop for Chip {
@@ -868,6 +958,32 @@ impl Layout {
         if err != 0 {
             Err(RegionError::ErrorCode(ErrorCode {
                 function: "flashrom_layout_include_region",
+                code: err,
+            }))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Exclude a region
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the region is not a valid CString,
+    /// or if libflashrom returns an error.
+    pub fn exclude_region(&mut self, region: &str) -> std::result::Result<(), RegionError> {
+        let err = {
+            let region = CString::new(region)?;
+            unsafe {
+                libflashrom_sys::flashrom_layout_exclude_region(
+                    self.layout.as_mut(),
+                    region.as_ptr(),
+                )
+            }
+        };
+        if err != 0 {
+            Err(RegionError::ErrorCode(ErrorCode {
+                function: "flashrom_layout_exclude_region",
                 code: err,
             }))
         } else {

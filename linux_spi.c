@@ -116,12 +116,9 @@ static const struct spi_master spi_master_linux = {
 	.max_data_read	= MAX_DATA_UNSPECIFIED, /* TODO? */
 	.max_data_write	= MAX_DATA_UNSPECIFIED, /* TODO? */
 	.command	= linux_spi_send_command,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= linux_spi_read,
 	.write_256	= linux_spi_write_256,
-	.write_aai	= default_spi_write_aai,
 	.shutdown	= linux_spi_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 /* Read max buffer size from sysfs, or use page size as fallback. */

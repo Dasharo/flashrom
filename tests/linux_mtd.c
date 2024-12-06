@@ -13,6 +13,8 @@
  * GNU General Public License for more details.
  */
 
+#include <stdlib.h>
+
 #include "lifecycle.h"
 
 #if CONFIG_LINUX_MTD == 1
@@ -81,9 +83,9 @@ void linux_mtd_probe_lifecycle_test_success(void **state)
 	};
 	const struct io_mock linux_mtd_io = {
 		.state	= &linux_mtd_io_state,
-		.fopen	= linux_mtd_fopen,
-		.fread	= linux_mtd_fread,
-		.fclose = linux_mtd_fclose,
+		.iom_fopen	= linux_mtd_fopen,
+		.iom_fread	= linux_mtd_fread,
+		.iom_fclose = linux_mtd_fclose,
 		.fallback_open_state = &linux_mtd_fallback_open_state,
 	};
 
