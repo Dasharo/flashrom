@@ -57,6 +57,18 @@ struct romentry {
 	struct flash_region region;
 };
 
+struct protected_range {
+	uint32_t base;
+	uint32_t limit;
+	bool read_prot;
+	bool write_prot;
+};
+
+struct protected_ranges {
+	int count;
+	const struct protected_range *ranges;
+};
+
 struct flashrom_layout;
 
 struct layout_include_args;
@@ -79,5 +91,6 @@ void prepare_layout_for_extraction(struct flashrom_flashctx *);
 int layout_sanity_checks(const struct flashrom_flashctx *);
 int check_for_unwritable_regions(const struct flashrom_flashctx *flash, unsigned int start, unsigned int len);
 void get_flash_region(const struct flashrom_flashctx *flash, int addr, struct flash_region *region);
+struct protected_ranges get_protected_ranges(const struct flashrom_flashctx *flash);
 
 #endif /* !__LAYOUT_H__ */
