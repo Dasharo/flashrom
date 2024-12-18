@@ -710,6 +710,7 @@ static void probe_ite_superio_support(struct ite_ec_data *ctx_data)
 static int ite_ec_init(const struct programmer_cfg *cfg)
 {
 	bool read_success = false;
+	bool force_boardmismatch = false;
 	struct ite_ec_data *ctx_data;
 
 	if (rget_io_perms())
@@ -720,8 +721,10 @@ static int ite_ec_init(const struct programmer_cfg *cfg)
 		return 1;
 	}
 
+	force_boardmismatch = ite_ec_board_mismatch_enabled(cfg);
+
 	if (!is_board_supported()) {
-		if (ite_ec_board_mismatch_enabled(cfg)) {
+		if (force_boardmismatch) {
 			msg_pinfo("Proceeding anyway because user forced us to.\n");
 		} else {
 			msg_pwarn("Probing on unsupported laptop may irritate your EC and cause fan failure, "
