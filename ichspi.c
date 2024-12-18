@@ -1289,6 +1289,13 @@ struct hwseq_data {
 	struct fd_region fd_regions[MAX_FD_REGIONS];
 };
 
+#define MAX_PR_REGISTERS 6
+struct protected_range _ranges[MAX_PR_REGISTERS];
+struct protected_ranges ranges = {
+	.count = 0,
+	.ranges = _ranges,
+};
+
 static struct hwseq_data *get_hwseq_data_from_context(const struct flashctx *flash)
 {
 	return flash->mst->opaque.data;
@@ -1469,6 +1476,10 @@ static void ich_get_region(const struct flashctx *flash, unsigned int addr, stru
 	}
 
 	region->name = strdup(name);
+}
+
+static struct protected_ranges ich_get_protected_ranges() {
+	return ranges;
 }
 
 /* Given RDID info, return pointer to entry in flashchips[] */
@@ -1950,12 +1961,17 @@ static enum ich_access_protection ich9_handle_region_access(struct fd_region *fd
 #define ICH_PR_PERMS(pr)	(((~((pr) >> PR_RP_OFF) & 1) << 0) | \
 				 ((~((pr) >> PR_WP_OFF) & 1) << 1))
 
-static enum ich_access_protection ich9_handle_pr(const size_t reg_pr0, unsigned int i)
+static enum ich_access_protection ich9_handle_pr(const size_t reg_pr0, unsigned int i, struct protected_range* prot)
 {
 	uint8_t off = reg_pr0 + (i * 4);
 	uint32_t pr = mmio_readl(ich_spibar + off);
 	unsigned int rwperms_idx = ICH_PR_PERMS(pr);
 	enum ich_access_protection rwperms = access_perms_to_protection[rwperms_idx];
+
+	prot->base = ICH_FREG_BASE(pr);
+	prot->limit = ICH_FREG_LIMIT(pr);
+	prot->write_prot = rwperms == WRITE_PROT;
+	prot->read_prot = (rwperms == READ_PROT) || (rwperms == LOCKED);
 
 	/* From 5 on we have GPR registers and start from 0 again. */
 	const char *const prefix = i >= 5 ? "G" : "";
@@ -2019,6 +2035,7 @@ static const struct opaque_master opaque_master_ich_hwseq = {
 	.read_register	= ich_hwseq_read_status,
 	.write_register	= ich_hwseq_write_status,
 	.get_region	= ich_get_region,
+	.get_protected_ranges = ich_get_protected_ranges,
 	.shutdown	= ich_hwseq_shutdown,
 };
 
@@ -2239,11 +2256,12 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 	}
 
 	/* Handle PR registers */
+	ranges.count = num_pr;
 	for (i = 0; i < num_pr; i++) {
 		/* if not locked down try to disable PR locks first */
 		if (!ichspi_lock)
 			ich9_set_pr(reg_pr0, i, 0, 0);
-		ich_spi_rw_restricted |= ich9_handle_pr(reg_pr0, i);
+		ich_spi_rw_restricted |= ich9_handle_pr(reg_pr0, i, &_ranges[i]);
 	}
 
 	switch (ich_spi_rw_restricted) {

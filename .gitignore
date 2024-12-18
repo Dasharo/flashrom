@@ -20,3 +20,6 @@
 /util/ich_descriptors_tool/.obj
 
 target/
+
+subprojects/cmocka-*/
+subprojects/packagecache/

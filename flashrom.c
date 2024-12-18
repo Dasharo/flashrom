@@ -383,6 +383,13 @@ void get_flash_region(const struct flashctx *flash, int addr, struct flash_regio
 	}
 }
 
+struct protected_ranges get_protected_ranges(const struct flashctx *flash) {
+	struct protected_ranges ranges = { 0 };
+	if ((flash->mst->buses_supported & BUS_PROG) && flash->mst->opaque.get_protected_ranges)
+		ranges = flash->mst->opaque.get_protected_ranges();
+	return ranges;
+}
+
 int check_for_unwritable_regions(const struct flashctx *flash, unsigned int start, unsigned int len)
 {
 	struct flash_region region;
@@ -1738,6 +1745,43 @@ warn_out:
 	return ret;
 }
 
+static int write_protect_check(struct flashctx *flash) {
+	bool check_wp = false;
+	size_t wp_start, wp_len;
+	enum flashrom_wp_mode mode;
+	struct flashrom_wp_cfg *cfg = NULL;
+	const struct romentry *entry = NULL;
+	const struct flashrom_layout *const layout = get_layout(flash);
+	struct protected_ranges ranges = get_protected_ranges(flash);
+
+	if (flashrom_wp_cfg_new(&cfg) == FLASHROM_WP_OK &&
+		flashrom_wp_read_cfg(cfg, flash) == FLASHROM_WP_OK )
+	{
+		flashrom_wp_get_range(&wp_start, &wp_len, cfg);
+		mode = flashrom_wp_get_mode(cfg);
+		if (mode != FLASHROM_WP_MODE_DISABLED && wp_len != 0)
+			check_wp = true;
+	}
+	flashrom_wp_cfg_release(cfg);
+
+	while ((entry = layout_next_included(layout, entry))) {
+		if (!flash->flags.skip_unwritable_regions &&
+			check_for_unwritable_regions(flash, entry->region.start, entry->region.end - entry->region.start))
+		{
+			return -1;
+		}
+		if (check_wp && entry->region.start < wp_start + wp_len && wp_start <= entry->region.end)
+			return -1;
+		for (int i = 0; i < ranges.count; ++i) {
+			struct protected_range prot = ranges.ranges[i];
+			if (prot.write_prot && entry->region.start < prot.base + prot.limit && prot.base <= entry->region.end)
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
 int prepare_flash_access(struct flashctx *const flash,
 			 const bool read_it, const bool write_it,
 			 const bool erase_it, const bool verify_it)
@@ -1750,6 +1794,13 @@ int prepare_flash_access(struct flashctx *const flash,
 	if (layout_sanity_checks(flash)) {
 		msg_cerr("Requested regions can not be handled. Aborting.\n");
 		return 1;
+	}
+
+	if ((write_it || erase_it) && !flash->flags.force) {
+		if (write_protect_check(flash)) {
+			msg_cerr("Requested regions are write protected. Aborting.\n");
+			return 1;
+		}
 	}
 
 	if (map_flash(flash) != 0)
