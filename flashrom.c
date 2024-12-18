@@ -1797,7 +1797,7 @@ int prepare_flash_access(struct flashctx *const flash,
 	}
 
 	if ((write_it || erase_it) && !flash->flags.force) {
-		if(write_protect_check(flash)) {
+		if (write_protect_check(flash)) {
 			msg_cerr("Requested regions are write protected. Aborting.\n");
 			return 1;
 		}

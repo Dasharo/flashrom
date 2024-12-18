@@ -1971,7 +1971,7 @@ static enum ich_access_protection ich9_handle_pr(const size_t reg_pr0, unsigned 
 	prot->base = ICH_FREG_BASE(pr);
 	prot->limit = ICH_FREG_LIMIT(pr);
 	prot->write_prot = rwperms == WRITE_PROT;
-	prot->read_prot = rwperms == READ_PROT || rwperms == LOCKED;
+	prot->read_prot = (rwperms == READ_PROT) || (rwperms == LOCKED);
 
 	/* From 5 on we have GPR registers and start from 0 again. */
 	const char *const prefix = i >= 5 ? "G" : "";
