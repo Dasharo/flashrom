@@ -609,6 +609,7 @@ static enum chipbustype enable_flash_ich_report_gcs(
 	case CHIPSET_700_SERIES_RAPTOR_POINT:
 	case CHIPSET_METEOR_LAKE:
 	case CHIPSET_PANTHER_LAKE:
+	case CHIPSET_WILDCAT_LAKE:
 	case CHIPSET_ELKHART_LAKE:
 	case CHIPSET_APOLLO_LAKE:
 	case CHIPSET_GEMINI_LAKE:
@@ -719,6 +720,7 @@ static enum chipbustype enable_flash_ich_report_gcs(
 	case CHIPSET_C740_SERIES_EMMITSBURG:
 	case CHIPSET_METEOR_LAKE:
 	case CHIPSET_PANTHER_LAKE:
+	case CHIPSET_WILDCAT_LAKE:
 		boot_straps = boot_straps_pch500;
 		break;
 	case CHIPSET_APOLLO_LAKE:
@@ -756,6 +758,7 @@ static enum chipbustype enable_flash_ich_report_gcs(
 	case CHIPSET_700_SERIES_RAPTOR_POINT:
 	case CHIPSET_METEOR_LAKE:
 	case CHIPSET_PANTHER_LAKE:
+	case CHIPSET_WILDCAT_LAKE:
 	case CHIPSET_APOLLO_LAKE:
 	case CHIPSET_GEMINI_LAKE:
 	case CHIPSET_JASPER_LAKE:
@@ -1039,6 +1042,11 @@ static int enable_flash_mtl(const struct programmer_cfg *cfg, struct pci_dev *co
 static int enable_flash_ptl(const struct programmer_cfg *cfg, struct pci_dev *const dev, const char *const name)
 {
 	return enable_flash_pch100_or_c620(cfg, dev, name, 0x1f, 5, CHIPSET_PANTHER_LAKE);
+}
+
+static int enable_flash_wcl(const struct programmer_cfg *cfg, struct pci_dev *const dev, const char *const name)
+{
+        return enable_flash_pch100_or_c620(cfg, dev, name, 0x1f, 5, CHIPSET_WILDCAT_LAKE);
 }
 
 static int enable_flash_mcc(const struct programmer_cfg *cfg, struct pci_dev *const dev, const char *const name)
@@ -2241,6 +2249,8 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0x9d84, B_S,    DEP, "Intel", "Cannon Lake U Premium",		enable_flash_pch300},
 	{0x8086, 0x0284, B_S,    DEP, "Intel", "Comet Lake U Premium",		enable_flash_pch400},
 	{0x8086, 0x0285, B_S,    DEP, "Intel", "Comet Lake U Base",		enable_flash_pch400},
+	{0x8086, 0xa0a4, B_S,    DEP, "Intel", "Tiger Lake LP",			enable_flash_pch500},
+	{0x8086, 0x43a4, B_S,    DEP, "Intel", "Tiger Lake H",			enable_flash_pch500},
 	{0x8086, 0xa082, B_S,    DEP, "Intel", "Tiger Lake U Premium",		enable_flash_pch500},
 	{0x8086, 0xa088, B_S,    DEP, "Intel", "Tiger Lake UP3",		enable_flash_pch500},
 	{0x8086, 0xa0a4, B_S,    DEP, "Intel", "Tiger Lake LP",			enable_flash_pch500},
@@ -2250,9 +2260,9 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0xa143, B_S,    DEP, "Intel", "H110",				enable_flash_pch100},
 	{0x8086, 0xa144, B_S,    NT,  "Intel", "H170",				enable_flash_pch100},
 	{0x8086, 0xa145, B_S,    NT,  "Intel", "Z170",				enable_flash_pch100},
-	{0x8086, 0xa146, B_S,    NT,  "Intel", "Q170",				enable_flash_pch100},
+	{0x8086, 0xa146, B_S,    DEP, "Intel", "Q170",				enable_flash_pch100},
 	{0x8086, 0xa147, B_S,    NT,  "Intel", "Q150",				enable_flash_pch100},
-	{0x8086, 0xa148, B_S,    NT,  "Intel", "B150",				enable_flash_pch100},
+	{0x8086, 0xa148, B_S,    DEP, "Intel", "B150",				enable_flash_pch100},
 	{0x8086, 0xa149, B_S,    NT,  "Intel", "C236",				enable_flash_pch100},
 	{0x8086, 0xa14a, B_S,    NT,  "Intel", "C232",				enable_flash_pch100},
 	{0x8086, 0xa14b, B_S,    NT,  "Intel", "Sunrise Point Server Sample",	enable_flash_pch100},
@@ -2357,6 +2367,7 @@ const struct penable chipset_enables[] = {
 	{0x8086, 0x7e23, B_S,    DEP, "Intel", "Meteor Lake-P/M",		enable_flash_mtl},
 	{0x8086, 0xe323, B_S,    DEP, "Intel", "Panther Lake-U/H 12Xe",		enable_flash_ptl},
 	{0x8086, 0xe423, B_S,    DEP, "Intel", "Panther Lake-H 4Xe",		enable_flash_ptl},
+	{0x8086, 0x4d23, B_S,    DEP, "Intel", "Wildcat Lake",                  enable_flash_wcl},
 #endif
 	{0},
 };

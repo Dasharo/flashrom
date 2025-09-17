@@ -16,7 +16,6 @@
  */
 
 #include <string.h>
-#include "flash.h"
 #include "chipdrivers.h"
 #include "programmer.h"
 #include "spi.h"
@@ -551,7 +550,7 @@ int spi_write_at45db(struct flashctx *flash, const uint8_t *buf, unsigned int st
 			msg_cerr("Writing page %u failed!\n", i);
 			return 1;
 		}
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i + page_size, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, page_size);
 	}
 	return 0;
 }

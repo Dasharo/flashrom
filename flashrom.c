@@ -35,6 +35,7 @@
 #include "hwaccess_physmap.h"
 #include "chipdrivers.h"
 #include "erasure_layout.h"
+#include "platform/udelay.h"
 
 const char flashrom_version[] = FLASHROM_VERSION;
 
@@ -1107,6 +1108,15 @@ static probe_func_t *lookup_probe_func_ptr(const struct flashchip *chip)
 	return NULL;
 }
 
+/*
+ * Probes the entries in flashchips array one by one, starting from `startchip` index.
+ * Probing keeps going until first match found or end of array reached.
+ *
+ * Returns:
+ * the position of the matched chip, i.e. index of the entry in flashchips array
+ * ERROR_FLASHROM_PROBE_NO_CHIPS_FOUND if no matches found
+ * ERROR_FLASHROM_PROBE_INTERNAL_ERROR if some unexpected error happened during this operation
+*/
 int probe_flash(struct registered_master *mst, int startchip, struct flashctx *flash, int force, const char *const chip_to_probe)
 {
 	const struct flashchip *chip;
@@ -1133,7 +1143,7 @@ int probe_flash(struct registered_master *mst, int startchip, struct flashctx *f
 		flash->chip = calloc(1, sizeof(*flash->chip));
 		if (!flash->chip) {
 			msg_gerr("Out of memory!\n");
-			return -1;
+			return ERROR_FLASHROM_PROBE_INTERNAL_ERROR;
 		}
 		*flash->chip = *chip;
 		flash->mst = mst;
@@ -1162,25 +1172,18 @@ int probe_flash(struct registered_master *mst, int startchip, struct flashctx *f
 		 * been found on this interface.
 		 */
 		if (startchip == 0 && flash->chip->model_id == SFDP_DEVICE_ID) {
-			msg_cinfo("===\n"
-				  "SFDP has autodetected a flash chip which is "
-				  "not natively supported by flashrom yet.\n");
+			msg_cinfo("===\nSFDP has autodetected a flash chip.\n");
 			if (count_usable_erasers(flash) == 0)
 				msg_cinfo("The standard operations read and "
-					  "verify should work, but to support "
-					  "erase, write and all other "
-					  "possible features");
+					  "verify should work, but support for "
+					  "erase and write needs to be added manually.\n");
 			else
 				msg_cinfo("All standard operations (read, "
-					  "verify, erase and write) should "
-					  "work, but to support all possible "
-					  "features");
+					  "verify, erase and write) should work.\n");
 
-			msg_cinfo(" we need to add them manually.\n"
-				  "You can help us by mailing us the output of the following command to "
-				  "flashrom@flashrom.org:\n"
-				  "'flashrom -VV [plus the -p/--programmer parameter]'\n"
-				  "Thanks for your help!\n"
+			msg_cinfo("Additionally, flashrom supports RPMC commands via SFDP autodetection.\n"
+				  "We may add support for more features via SFDP in future.\n"
+				  "If you are interested, join us on the mailing list https://flashrom.org/contact.html#mailing-list-1\n"
 				  "===\n");
 		}
 
@@ -1198,10 +1201,10 @@ notfound:
 	}
 
 	if (!flash->chip)
-		return -1;
+		return ERROR_FLASHROM_PROBE_NO_CHIPS_FOUND;
 
 	if (init_default_layout(flash) < 0)
-		return -1;
+		return ERROR_FLASHROM_PROBE_INTERNAL_ERROR;
 
 	tmp = flashbuses_to_text(flash->chip->bustype);
 	msg_cinfo("%s %s flash chip \"%s\" (%d kB, %s) ", force ? "Assuming" : "Found",
@@ -1228,6 +1231,74 @@ notfound:
 	return chip - flashchips;
 }
 
+static void setup_progress_from_layout(struct flashctx *flashctx,
+				       enum flashrom_progress_stage stage)
+{
+	if (!flashctx->progress_callback && !flashctx->deprecated_progress_callback)
+		return;
+
+	const struct flashrom_layout *const flash_layout = get_layout(flashctx);
+
+	size_t total = 0;
+	const struct romentry *entry = NULL;
+	while ((entry = layout_next_included(flash_layout, entry))) {
+		const struct flash_region *region = &entry->region;
+		total += region->end - region->start + 1;
+	}
+
+	init_progress(flashctx, stage, total);
+}
+
+
+static void setup_progress_from_layout_and_diff(struct flashctx *flashctx,
+						const void *have,
+						const void *want,
+						enum flashrom_progress_stage stage)
+{
+	if (!flashctx->progress_callback && !flashctx->deprecated_progress_callback)
+		return;
+
+	const struct flashrom_layout *flash_layout = get_layout(flashctx);
+	const size_t page_size = flashctx->chip->page_size;
+
+	size_t total = 0;
+
+	const struct romentry *entry = NULL;
+	while ((entry = layout_next_included(flash_layout, entry))) {
+		const struct flash_region *region = &entry->region;
+
+		if (stage == FLASHROM_PROGRESS_ERASE) {
+			size_t offset;
+			for (offset = region->start; offset <= region->end; offset += page_size) {
+				const size_t len = min(page_size, region->end + 1 - offset);
+
+				if (need_erase(have, want, len, flashctx->chip->gran, ERASED_VALUE(flashctx)))
+					total += len;
+			}
+		}
+
+		if (stage == FLASHROM_PROGRESS_WRITE) {
+			unsigned int start = region->start;
+			unsigned int len;
+			while ((len = get_next_write(have + start, want + start,
+						     region->end + 1 - start, &start, flashctx->chip->gran))) {
+				start += len;
+				total += len;
+			}
+
+			if (flashctx->chip->feature_bits & FEATURE_NO_ERASE)
+				/* For chips with FEATURE_NO_ERASE erase op is running as write under the hood.
+				 * So typical write, which usually consists of erasing and then writing,
+				 * would be writing and then writing again. The planned total length for the
+				 * progress indicator for write is double. */
+				total *= 2;
+		}
+	}
+
+	init_progress(flashctx, stage, total);
+}
+
+
 /**
  * @brief Reads the included layout regions into a buffer.
  *
@@ -1243,6 +1314,8 @@ static int read_by_layout(struct flashctx *const flashctx, uint8_t *const buffer
 {
 	const struct flashrom_layout *const layout = get_layout(flashctx);
 	const struct romentry *entry = NULL;
+
+	setup_progress_from_layout(flashctx, FLASHROM_PROGRESS_READ);
 
 	while ((entry = layout_next_included(layout, entry))) {
 		const struct flash_region *region = &entry->region;
@@ -1356,6 +1429,9 @@ static int erase_by_layout(struct flashctx *const flashctx)
 	memset(curcontents, ~ERASED_VALUE(flashctx), flash_size);
 	memset(newcontents, ERASED_VALUE(flashctx), flash_size);
 
+	setup_progress_from_layout(flashctx, FLASHROM_PROGRESS_READ);
+	setup_progress_from_layout_and_diff(flashctx, curcontents, newcontents, FLASHROM_PROGRESS_ERASE);
+
 	const struct flashrom_layout *const flash_layout = get_layout(flashctx);
 	const struct romentry *entry = NULL;
 	while ((entry = layout_next_included(flash_layout, entry))) {
@@ -1391,6 +1467,10 @@ static int write_by_layout(struct flashctx *const flashctx,
 	if (!erase_layout) {
 		goto _ret;
 	}
+
+	setup_progress_from_layout(flashctx, FLASHROM_PROGRESS_READ);
+	setup_progress_from_layout_and_diff(flashctx, curcontents, newcontents, FLASHROM_PROGRESS_WRITE);
+	setup_progress_from_layout_and_diff(flashctx, curcontents, newcontents, FLASHROM_PROGRESS_ERASE);
 
 	const struct romentry *entry = NULL;
 	while ((entry = layout_next_included(flash_layout, entry))) {
@@ -1430,6 +1510,8 @@ static int verify_by_layout(
 {
 	const struct romentry *entry = NULL;
 
+	setup_progress_from_layout(flashctx, FLASHROM_PROGRESS_READ);
+
 	while ((entry = layout_next_included(layout, entry))) {
 		const struct flash_region *region = &entry->region;
 		const chipoff_t region_start	= region->start;
@@ -1459,27 +1541,27 @@ static void nonfatal_help_message(void)
 	if (is_internal_programmer())
 		msg_gerr("This means we have to add special support for your board, programmer or flash\n"
 			 "chip. Please report this to the mailing list at flashrom@flashrom.org or on\n"
-			 "IRC (see https://www.flashrom.org/Contact for details), thanks!\n"
+			 "chat channels (see https://flashrom.org/contact.html for details), thanks!\n"
 			 "-------------------------------------------------------------------------------\n"
 			 "You may now reboot or simply leave the machine running.\n");
 	else
 		msg_gerr("Please check the connections (especially those to write protection pins) between\n"
 			 "the programmer and the flash chip. If you think the error is caused by flashrom\n"
-			 "please report this to the mailing list at flashrom@flashrom.org or on IRC (see\n"
-			 "https://www.flashrom.org/Contact for details), thanks!\n");
+			 "please report this to the mailing list at flashrom@flashrom.org or on chat (see\n"
+			 "https://flashrom.org/contact.html for details), thanks!\n");
 }
 
 void emergency_help_message(void)
 {
 	msg_gerr("Your flash chip is in an unknown state.\n");
 	if (is_internal_programmer())
-		msg_gerr("Get help on IRC (see https://www.flashrom.org/Contact) or mail\n"
+		msg_gerr("Get help on chat (see https://flashrom.org/contact.html) or mail\n"
 			"flashrom@flashrom.org with the subject \"FAILED: <your board name>\"!"
 			"-------------------------------------------------------------------------------\n"
 			"DO NOT REBOOT OR POWEROFF!\n");
 	else
 		msg_gerr("Please report this to the mailing list at flashrom@flashrom.org or\n"
-			 "on IRC (see https://www.flashrom.org/Contact for details), thanks!\n");
+			 "on chat (see https://flashrom.org/contact.html for details), thanks!\n");
 }
 
 void list_programmers_linebreak(int startcol, int cols, int paren)
@@ -1811,7 +1893,7 @@ void finalize_flash_access(struct flashctx *const flash)
 
 int flashrom_flash_erase(struct flashctx *const flashctx)
 {
-	if (prepare_flash_access(flashctx, false, false, true, false))
+	if (prepare_flash_access(flashctx, false, false, true, flashctx->flags.verify_after_write))
 		return 1;
 
 	const int ret = erase_by_layout(flashctx);
@@ -1927,6 +2009,7 @@ int flashrom_image_write(struct flashctx *const flashctx, void *const buffer, co
 		 */
 		msg_cinfo("Reading old flash chip contents... ");
 		if (verify_all) {
+			init_progress(flashctx, FLASHROM_PROGRESS_READ, flash_size);
 			if (read_flash(flashctx, oldcontents, 0, flash_size)) {
 				msg_cinfo("FAILED.\n");
 				goto _finalize_ret;
@@ -1943,12 +2026,14 @@ int flashrom_image_write(struct flashctx *const flashctx, void *const buffer, co
 
 	bool all_skipped = true;
 
+	msg_cinfo("Updating flash chip contents... ");
 	if (write_by_layout(flashctx, curcontents, newcontents, &all_skipped)) {
 		msg_cerr("Uh oh. Erase/write failed. ");
 		ret = 2;
 		if (verify_all) {
 			msg_cerr("Checking if anything has changed.\n");
 			msg_cinfo("Reading current flash chip contents... ");
+			init_progress(flashctx, FLASHROM_PROGRESS_READ, flash_size);
 			if (!read_flash(flashctx, curcontents, 0, flash_size)) {
 				msg_cinfo("done.\n");
 				if (!memcmp(oldcontents, curcontents, flash_size)) {

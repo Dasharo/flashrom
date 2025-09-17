@@ -173,6 +173,11 @@ enum write_granularity {
 /* Whether chip has configuration register (RDCR/WRSR_EXT2 commands) */
 #define FEATURE_CFGR	    (1 << 25)
 
+/*
+ * Whether the chip supports serial flash hardening specified in JESD260
+ */
+#define FEATURE_FLASH_HARDENING (1 << 26)
+
 #define ERASED_VALUE(flash)	(((flash)->chip->feature_bits & FEATURE_ERASED_ZERO) ? 0x00 : 0xff)
 #define UNERASED_VALUE(flash)	(((flash)->chip->feature_bits & FEATURE_ERASED_ZERO) ? 0xff : 0x00)
 
@@ -544,11 +549,42 @@ struct flashchip {
 	 * and determines what protection range they select.
 	 */
 	enum decode_range_func decode_range;
+
+	struct rpmc_config {
+		uint8_t op1_opcode;
+		uint8_t op2_opcode;
+
+		unsigned int num_counters;
+
+		/*
+		 * Busy Polling Method :
+		 * ‘0’: Poll for OP1 busy using OP2 Extended Status[0].
+		 *      No OP1 Suspended State Support.
+		 * ‘1’: Poll for OP1 busy using Read Status (05H).
+		 *      Suspended State is supported.
+		 */
+		enum busy_polling_methods {
+			POLL_OP2_EXTENDED_STATUS = 0,
+			POLL_READ_STATUS = 1
+		} busy_polling_method;
+
+		unsigned int update_rate;
+
+		/* All times in microsecond (us) */
+		unsigned int polling_delay_read_counter_us;
+		unsigned int polling_short_delay_write_counter_us;
+		unsigned int polling_long_delay_write_counter_us;
+	} rpmc_ctx;
 };
 
 typedef int (*chip_restore_fn_cb_t)(struct flashctx *flash, void *data);
 typedef int (blockprotect_func_t)(struct flashctx *flash);
 blockprotect_func_t *lookup_blockprotect_func_ptr(const struct flashchip *const chip);
+
+struct stage_progress {
+	size_t current;
+	size_t total;
+};
 
 struct flashrom_flashctx {
 	struct flashchip *chip;
@@ -586,8 +622,15 @@ struct flashrom_flashctx {
 		void *data;
 	} chip_restore_fn[MAX_CHIP_RESTORE_FUNCTIONS];
 	/* Progress reporting */
-	flashrom_progress_callback *progress_callback;
-	struct flashrom_progress *progress_state;
+	flashrom_progress_callback_v2 *progress_callback;
+	struct flashrom_progress progress_state;
+	struct stage_progress stage_progress[FLASHROM_PROGRESS_NR];
+	/* deprecated, do not use */
+	flashrom_progress_callback *deprecated_progress_callback;
+	struct flashrom_progress *deprecated_progress_state;
+
+	/* Maximum allowed % of redundant erase */
+	int sacrifice_ratio;
 };
 
 /* Timing used in probe routines. ZERO is -2 to differentiate between an unset
@@ -678,18 +721,27 @@ int write_flash(struct flashctx *flash, const uint8_t *buf, unsigned int start, 
  */
 #define ERROR_FLASHROM_LIMIT -201
 
+#define ERROR_FLASHROM_PROBE_NO_CHIPS_FOUND -1
+#define ERROR_FLASHROM_PROBE_INTERNAL_ERROR -2
+
+struct cli_progress {
+	unsigned int stage_pc[FLASHROM_PROGRESS_NR];
+	unsigned int visible_stages; /* Bitmask of stages with non-zero progress. */
+	bool stage_setup; /* Flag to know when to reset progress data. */
+};
+
 /* cli_common.c */
 void print_chip_support_status(const struct flashchip *chip);
 
-/* cli_output.c */
-extern enum flashrom_log_level verbose_screen;
-extern enum flashrom_log_level verbose_logfile;
-int open_logfile(const char * const filename);
-int close_logfile(void);
-void start_logging(void);
-int flashrom_print_cb(enum flashrom_log_level level, const char *fmt, va_list ap);
-void flashrom_progress_cb(struct flashrom_flashctx *flashctx);
-/* Let gcc and clang check for correct printf-style format strings. */
+/* libflashrom.c */
+/*
+ * Let gcc and clang check for correct printf-style format strings.
+ * Avoid using formatted messages longer than 256 characters.
+ * The new public logging API formats messages and passes a ready-to-print
+ * string  to the user callback for performance reasons.
+ * Therefore, any message exceeding 256 characters will be truncated,
+ * and an ERANGE error code will be returned.
+ */
 int print(enum flashrom_log_level level, const char *fmt, ...)
 #ifdef __MINGW32__
 #  ifndef __MINGW_PRINTF_FORMAT
@@ -717,18 +769,7 @@ __attribute__((format(printf, 2, 3)));
 #define msg_gspew(...)	print(FLASHROM_MSG_SPEW, __VA_ARGS__)	/* general debug spew  */
 #define msg_pspew(...)	print(FLASHROM_MSG_SPEW, __VA_ARGS__)	/* programmer debug spew  */
 #define msg_cspew(...)	print(FLASHROM_MSG_SPEW, __VA_ARGS__)	/* chip debug spew  */
-void update_progress(struct flashctx *flash, enum flashrom_progress_stage stage, size_t current, size_t total);
+void init_progress(struct flashctx *flash, enum flashrom_progress_stage stage, size_t total);
+void update_progress(struct flashctx *flash, enum flashrom_progress_stage stage, size_t increment);
 
-/* spi.c */
-struct spi_command {
-	unsigned int writecnt;
-	unsigned int readcnt;
-	const unsigned char *writearr;
-	unsigned char *readarr;
-};
-#define NULL_SPI_CMD { 0, 0, NULL, NULL, }
-int spi_send_command(const struct flashctx *flash, unsigned int writecnt, unsigned int readcnt, const unsigned char *writearr, unsigned char *readarr);
-int spi_send_multicommand(const struct flashctx *flash, struct spi_command *cmds);
-
-enum chipbustype get_buses_supported(void);
 #endif				/* !__FLASH_H__ */

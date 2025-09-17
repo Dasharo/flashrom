@@ -15,11 +15,11 @@
  * GNU General Public License for more details.
  */
 
-#include "flash.h"
 #include "programmer.h"
 #include "hwaccess_x86_io.h"
 #include "spi.h"
 #include "platform/pci.h"
+#include "platform/udelay.h"
 
 /* same as serverengines */
 static void enter_conf_mode_ec(uint16_t port)

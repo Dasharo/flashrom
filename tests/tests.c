@@ -139,6 +139,34 @@ int __wrap___open64_2(const char *pathname, int flags, ...)
 	return mock_open(pathname, flags, (mode_t) mode);
 }
 
+int __wrap_fcntl(int fd, int cmd, ...)
+{
+	LOG_ME;
+	if (get_io() && get_io()->iom_ioctl) {
+		va_list args;
+		int out;
+		va_start(args, cmd);
+		out = get_io()->iom_fcntl(get_io()->state, fd, cmd, args);
+		va_end(args);
+		return out;
+	}
+	return 0;
+}
+
+int __wrap_fcntl64(int fd, int cmd, ...)
+{
+	LOG_ME;
+	if (get_io() && get_io()->iom_ioctl) {
+		va_list args;
+		int out;
+		va_start(args, cmd);
+		out = get_io()->iom_fcntl(get_io()->state, fd, cmd, args);
+		va_end(args);
+		return out;
+	}
+	return 0;
+}
+
 int __wrap_ioctl(int fd, unsigned long int request, ...)
 {
 	LOG_ME;
@@ -387,6 +415,18 @@ unsigned int __wrap_INL(unsigned short port)
 	return 0;
 }
 
+int __wrap_tcgetattr(int fd, struct termios *termios_p)
+{
+	LOG_ME;
+	return 0;
+}
+
+int __wrap_tcsetattr(int fd, int optional_actions, const struct termios *termios_p)
+{
+	LOG_ME;
+	return 0;
+}
+
 static void *doing_nothing(void *vargp) {
 	return NULL;
 }
@@ -438,10 +478,19 @@ int main(int argc, char *argv[])
 	};
 	ret |= cmocka_run_group_tests_name("flashrom.c tests", flashrom_tests, NULL, NULL);
 
+	const struct CMUnitTest libflashrom_tests[] = {
+		cmocka_unit_test(flashrom_set_log_callback_test_success),
+		cmocka_unit_test(flashrom_set_log_callback_v2_test_success),
+		cmocka_unit_test(flashrom_set_log_level_test_success),
+		cmocka_unit_test(flashrom_supported_programmers_test_success),
+		cmocka_unit_test(probe_v2_error_code_propagation),
+	};
+	ret |= cmocka_run_group_tests_name("libflashrom.c tests", libflashrom_tests, NULL, NULL);
+
 	const struct CMUnitTest spi25_tests[] = {
 		cmocka_unit_test(spi_write_enable_test_success),
 		cmocka_unit_test(spi_write_disable_test_success),
-		cmocka_unit_test(spi_read_chunked_test_success),
+		cmocka_unit_test(default_spi_read_test_success),
 		cmocka_unit_test(probe_spi_rdid_test_success),
 		cmocka_unit_test(probe_spi_rdid4_test_success),
 		cmocka_unit_test(probe_spi_rems_test_success),
@@ -456,6 +505,9 @@ int main(int argc, char *argv[])
 	const struct CMUnitTest lifecycle_tests[] = {
 		cmocka_unit_test(dummy_basic_lifecycle_test_success),
 		cmocka_unit_test(dummy_probe_lifecycle_test_success),
+		cmocka_unit_test(dummy_probe_v2_one_match_for_W25Q128FV),
+		cmocka_unit_test(dummy_probe_v2_six_matches_for_MX25L6436),
+		cmocka_unit_test(dummy_probe_v2_no_matches_found),
 		cmocka_unit_test(dummy_probe_variable_size_test_success),
 		cmocka_unit_test(dummy_init_fails_unhandled_param_test_success),
 		cmocka_unit_test(dummy_init_success_invalid_param_test_success),
@@ -463,6 +515,9 @@ int main(int argc, char *argv[])
 		cmocka_unit_test(dummy_null_prog_param_test_success),
 		cmocka_unit_test(dummy_all_buses_test_success),
 		cmocka_unit_test(dummy_freq_param_init),
+		cmocka_unit_test(dummy_probe_and_read),
+		cmocka_unit_test(dummy_probe_and_write),
+		cmocka_unit_test(dummy_probe_and_erase),
 		cmocka_unit_test(nicrealtek_basic_lifecycle_test_success),
 		cmocka_unit_test(raiden_debug_basic_lifecycle_test_success),
 		cmocka_unit_test(raiden_debug_targetAP_basic_lifecycle_test_success),
@@ -480,6 +535,7 @@ int main(int argc, char *argv[])
 		cmocka_unit_test(realtek_mst_no_allow_brick_test_success),
 		cmocka_unit_test(ch341a_spi_basic_lifecycle_test_success),
 		cmocka_unit_test(ch341a_spi_probe_lifecycle_test_success),
+		cmocka_unit_test(spidriver_probe_lifecycle_test_success),
 	};
 	ret |= cmocka_run_group_tests_name("lifecycle.c tests", lifecycle_tests, NULL, NULL);
 
@@ -495,12 +551,16 @@ int main(int argc, char *argv[])
 
 	const struct CMUnitTest chip_tests[] = {
 		cmocka_unit_test(erase_chip_test_success),
+		cmocka_unit_test(erase_chip_with_progress),
 		cmocka_unit_test(erase_chip_with_dummyflasher_test_success),
 		cmocka_unit_test(read_chip_test_success),
+		cmocka_unit_test(read_chip_with_progress),
 		cmocka_unit_test(read_chip_with_dummyflasher_test_success),
 		cmocka_unit_test(write_chip_test_success),
+		cmocka_unit_test(write_chip_with_progress),
 		cmocka_unit_test(write_chip_with_dummyflasher_test_success),
 		cmocka_unit_test(write_chip_feature_no_erase),
+		cmocka_unit_test(write_chip_feature_no_erase_with_progress),
 		cmocka_unit_test(write_nonaligned_region_with_dummyflasher_test_success),
 		cmocka_unit_test(verify_chip_test_success),
 		cmocka_unit_test(verify_chip_with_dummyflasher_test_success),

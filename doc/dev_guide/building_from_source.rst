@@ -1,6 +1,9 @@
 Building from source
 ====================
 
+First thing, clone git repository for yourself (if you haven't done it already),
+see :ref:`git repo setup`.
+
 You're going to need the following tools to get started:
 
 * gcc or clang
@@ -20,10 +23,12 @@ And the following dependencies:
 * libftdi1 [#b2]_
 * libjaylink [#b2]_
 * NI-845x driver & library package [#b3]_
+* libcrypto [#b4]_
 
 .. [#b1] | optional, for building unit testing
 .. [#b2] | optional, depending on the selected programmer
 .. [#b3] | optional, proprietary and Windows only. (See Windows build instructions)
+.. [#b4] | optional, to enable RPMC commands
 
 If you are cross compiling, install the dependencies for your target.
 
@@ -56,7 +61,8 @@ Linux
 
       apt-get install -y \
       gcc meson ninja-build pkg-config python3-sphinx \
-      libcmocka-dev libpci-dev libusb-1.0-0-dev libftdi1-dev libjaylink-dev
+      libcmocka-dev libpci-dev libusb-1.0-0-dev libftdi1-dev libjaylink-dev \
+      libssl-dev
 
 * ArchLinux / Manjaro
 
@@ -64,7 +70,8 @@ Linux
 
       pacman -S --noconfirm \
       gcc meson ninja pkg-config python-sphinx cmocka \
-      pciutils libusb libftdi libjaylink
+      pciutils libusb libftdi libjaylink \
+      openssl
 
 * openSUSE / SUSE
 
@@ -209,8 +216,11 @@ libpayload
     .. todo:: Add building instructions for libpayload
 
 
+.. _meson_configuration:
+
 Configuration
 -------------
+
 In the flashrom repository run::
 
     meson setup [builtin options] [flashrom options] <builddir>

@@ -29,7 +29,7 @@ lt_version = '@0@.@1@.@2@'.format(lt_current, lt_age, lt_revision)
 
 flashrom_version = meson.project_version()
 git = find_program('git', native : true, required : false)
-if git.found()
+if git.found() and fs.is_dir(meson.project_source_root()/'.git')
   version_git = run_command('git', 'describe', check : false)
   if version_git.returncode() == 0
     flashrom_version += ' (git:@0@)'.format(version_git.stdout().strip())
@@ -106,16 +106,6 @@ srcs = files(
   'writeprotect_ranges.c',
 )
 
-# Select an appropriate delay implementation for the target OS
-delay_src = files('udelay.c')
-if target_machine.system() == 'dos'
-  delay_src = files('udelay_dos.c')
-endif
-srcs += delay_src
-cargs += ['-DCONFIG_DELAY_MINIMUM_SLEEP_US=@0@'.format(
-  get_option('delay_minimum_sleep_us')
-)]
-
 # check for required symbols
 if cc.has_function('clock_gettime')
   add_project_arguments('-DHAVE_CLOCK_GETTIME=1', language : 'c')
@@ -165,12 +155,20 @@ libpci     = dependency('libpci', required : group_pci, version : '>=2.2.0',
 libusb1    = dependency('libusb-1.0', required : group_usb)
 libftdi1   = dependency('libftdi1', required : group_ftdi)
 libjaylink = dependency('libjaylink', required : group_jlink, version : '>=0.3.0')
+libcrypto = dependency('libcrypto', required : get_option('rpmc'), version : '>=3.0.0')
 
 # ECAM is supported in libpci after 3.13.0
 if libpci.version().version_compare('>=3.13.0')
     add_project_arguments('-DCONFIG_USE_LIBPCI_ECAM=1', language: 'c')
 else
     add_project_arguments('-DCONFIG_USE_LIBPCI_ECAM=0', language: 'c')
+endif
+
+# Support additional rpmc commands if libcrypto is installed
+if (get_option('rpmc').auto() or get_option('rpmc').enabled()) and libcrypto.found()
+    add_project_arguments('-DCONFIG_RPMC_ENABLED=1', language : 'c')
+    srcs += 'rpmc.c'
+    deps += libcrypto
 endif
 
 if host_machine.system() == 'windows'
@@ -631,6 +629,13 @@ programmer = {
     'srcs'    : files('serprog.c', 'serial.c', custom_baud_c),
     'flags'   : [ '-DCONFIG_SERPROG=1' ],
   },
+  'spidriver' : {
+    'systems' : systems_serial,
+    'groups'  : [ group_serial, group_external ],
+    'srcs'    : files('spidriver.c', 'serial.c', custom_baud_c),
+    'test_srcs' : files('tests/spidriver.c'),
+    'flags'   : [ '-DCONFIG_SPIDRIVER=1' ],
+  },
   'stlinkv3_spi' : {
     'deps'    : [ libusb1 ],
     'groups'  : [ group_usb, group_external ],
@@ -743,6 +748,8 @@ else
 endif
 
 cargs += '-DCONFIG_DEFAULT_PROGRAMMER_ARGS="' + config_default_programmer_args + '"'
+
+cargs += '-DLOG_MESSAGE_LENGTH_LIMIT=' + get_option('log_message_length_limit').to_string()
 
 if get_option('llvm_cov').enabled()
   cargs += ['-fprofile-instr-generate', '-fcoverage-mapping']

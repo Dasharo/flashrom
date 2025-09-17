@@ -26,9 +26,9 @@
 #include <errno.h>
 #include <libjaylink/libjaylink.h>
 
-#include "flash.h"
 #include "programmer.h"
 #include "spi.h"
+#include "platform/udelay.h"
 
 /*
  * Maximum number of bytes that can be transferred at once via the JTAG
@@ -466,7 +466,7 @@ static int jlink_spi_init(const struct programmer_cfg *cfg)
 		}
 
 		/* Wait some time until the target is powered up. */
-		internal_sleep(10000);
+		internal_sleep(100000);
 	}
 
 	struct jaylink_hardware_status hwstat;

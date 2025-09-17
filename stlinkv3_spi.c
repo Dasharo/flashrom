@@ -23,9 +23,9 @@
  * https://www.st.com/en/development-tools/stlink-v3-bridge.html
  */
 
-#include "flash.h"
 #include "programmer.h"
 #include "spi.h"
+#include "usbdev.h"
 
 #include <libusb.h>
 #include <limits.h>

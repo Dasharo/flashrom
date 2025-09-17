@@ -6,6 +6,7 @@ LIBFLASHROM_1.0 {
     flashrom_flash_erase;
     flashrom_flash_getsize;
     flashrom_flash_probe;
+    flashrom_flash_probe_v2;
     flashrom_flash_release;
     flashrom_image_read;
     flashrom_image_verify;
@@ -24,11 +25,15 @@ LIBFLASHROM_1.0 {
     flashrom_programmer_init;
     flashrom_programmer_shutdown;
     flashrom_set_log_callback;
+    flashrom_set_log_callback_v2;
+    flashrom_set_log_level;
     flashrom_set_progress_callback;
+    flashrom_set_progress_callback_v2;
     flashrom_shutdown;
     flashrom_supported_boards;
     flashrom_supported_chipsets;
     flashrom_supported_flash_chips;
+    flashrom_supported_programmers;
     flashrom_version_info;
     flashrom_wp_cfg_new;
     flashrom_wp_cfg_release;

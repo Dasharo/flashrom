@@ -17,21 +17,9 @@ not currently supported.
 
 https://ticket.coreboot.org/issues/370
 
-Build only supported with Meson
-===============================
+Added support
+=============
 
-As documented in the :doc:`v1.4 release notes <v_1_4>`, support for building
-flashrom with make has been removed; all Makefiles have been deleted. Meson is
-now the only supported tool for building flashrom from source.
-
-New Feature
-===========
-Libpci 3.13.0 and onwards support ECAM to access pci registers. Flashrom will
-be moved to ECAM from IO port 0xcf8/0xcfc if the libpci version is >= 3.13.0.
-The ECAM has been supported for a very long time, most platforms should support
-it. For those platforms don't support ECAM, libpci will terminate the process by
-exit.
-
-Chipset support
-===============
-Added Raptor Point PCH support.
+* Intel Wildcat Lake chipset
+* Eon EN25QX128A
+* PUYA P25D80H

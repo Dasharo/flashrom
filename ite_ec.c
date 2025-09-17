@@ -31,6 +31,7 @@
 #include "hwaccess_x86_io.h"
 #include "programmer.h"
 #include "ite_ec.h"
+#include "platform/udelay.h"
 
 #define EC_CMD_ERASE_ALL    0x01
 #define EC_CMD_WRITE_BLOCK  0x02

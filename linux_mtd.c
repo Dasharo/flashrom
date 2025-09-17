@@ -49,7 +49,7 @@ static int read_sysfs_string(const char *sysfs_path, const char *filename, char 
 	int i;
 	size_t bytes_read;
 	FILE *fp;
-	char path[strlen(LINUX_MTD_SYSFS_ROOT) + 32];
+	char path[sizeof(LINUX_MTD_SYSFS_ROOT) + 31];
 
 	snprintf(path, sizeof(path), "%s/%s", sysfs_path, filename);
 
@@ -215,7 +215,7 @@ static int linux_mtd_read(struct flashctx *flash, uint8_t *buf,
 		}
 
 		i += step;
-		update_progress(flash, FLASHROM_PROGRESS_READ, i, len);
+		update_progress(flash, FLASHROM_PROGRESS_READ, step);
 	}
 
 	return 0;
@@ -258,7 +258,7 @@ static int linux_mtd_write(struct flashctx *flash, const uint8_t *buf,
 		}
 
 		i += step;
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, step);
 	}
 
 	return 0;
@@ -295,7 +295,6 @@ static int linux_mtd_erase(struct flashctx *flash,
 		                 __func__, ret, strerror(errno));
 		        return 1;
 		}
-		update_progress(flash, FLASHROM_PROGRESS_ERASE, u + data->erasesize, len);
 	}
 
 	return 0;

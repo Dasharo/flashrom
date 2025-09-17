@@ -23,12 +23,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "flash.h"
 #include "chipdrivers.h"
 #include "programmer.h"
 #include "hwaccess_physmap.h"
 #include "hwaccess_x86_io.h"
 #include "spi.h"
+#include "platform/udelay.h"
 
 #define ITE_SUPERIO_PORT1	0x2e
 #define ITE_SUPERIO_PORT2	0x4e
@@ -294,7 +294,7 @@ static int it8716f_spi_chip_write_256(struct flashctx *flash, const uint8_t *buf
 			int ret = it8716f_spi_page_program(flash, buf, start);
 			if (ret)
 				return ret;
-			update_progress(flash, FLASHROM_PROGRESS_WRITE, chip->page_size - len, chip->page_size);
+			update_progress(flash, FLASHROM_PROGRESS_WRITE, chip->page_size);
 			start += chip->page_size;
 			len -= chip->page_size;
 			buf += chip->page_size;

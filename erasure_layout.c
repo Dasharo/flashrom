@@ -189,6 +189,27 @@ static void align_region(const struct erase_layout *layout, struct flashctx *con
 	}
 }
 
+/* Deselect all the blocks from index_to_deselect and down to the smallest. */
+static void deselect_erase_functions(const struct erase_layout *layout, size_t index_to_deselect,
+					int sub_block_start, const int sub_block_end)
+{
+	for (int j = sub_block_start; j <= sub_block_end; j++)
+		layout[index_to_deselect].layout_list[j].selected = false;
+
+	int block_start_to_deselect =
+		layout[index_to_deselect].layout_list[sub_block_start].first_sub_block_index;
+	int block_end_to_deselect =
+		layout[index_to_deselect].layout_list[sub_block_end].last_sub_block_index;
+
+	if (index_to_deselect)
+		deselect_erase_functions(layout,
+					index_to_deselect - 1,
+					block_start_to_deselect,
+					block_end_to_deselect);
+	else
+		return; // index_to_deselect has already reached 0, the smallest size of block. we are done.
+}
+
 /*
  * @brief	Function to select the list of sectors that need erasing
  *
@@ -228,10 +249,20 @@ static void select_erase_functions(struct flashctx *flashctx, const struct erase
 		}
 
 		const int total_blocks = sub_block_end - sub_block_start + 1;
-		if (count == total_blocks) {
+		if (total_blocks - count <= total_blocks * flashctx->sacrifice_ratio / 100) {
+			/* Number of smaller blocks not needed to change is lower than the
+			 * sacrifice ratio, so we can sacrifice them.
+			 * We are selecting one large block to cover the area, so
+			 * send opcode once instead of sending many smaller ones.
+			 */
 			if (ll->start_addr >= rstart && ll->end_addr <= rend) {
-				for (int j = sub_block_start; j <= sub_block_end; j++)
-					layout[findex - 1].layout_list[j].selected = false;
+				/* Deselect all smaller blocks covering the same region. */
+				deselect_erase_functions(layout,
+							findex - 1,
+							sub_block_start,
+							sub_block_end);
+
+				/* Select large block. */
 				ll->selected = true;
 			}
 		}
@@ -270,10 +301,13 @@ static int erase_write_helper(struct flashctx *const flashctx, chipoff_t region_
 			if (erasefn(flashctx, start_addr, block_len)) {
 				return -1;
 			}
-			if (check_erased_range(flashctx, start_addr, block_len)) {
-				return -1;
+			if (flashctx->flags.verify_after_write
+				&& check_erased_range(flashctx, start_addr, block_len)) {
 				msg_cerr("ERASE FAILED!\n");
+				return -1;
 			}
+
+			update_progress(flashctx, FLASHROM_PROGRESS_ERASE, block_len);
 
 			// adjust curcontents
 			memset(curcontents+start_addr, erased_value, block_len);

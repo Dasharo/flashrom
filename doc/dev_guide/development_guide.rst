@@ -15,6 +15,8 @@ design.
 
 You can `look at the latest flashrom development efforts in Gerrit <https://review.coreboot.org/q/project:flashrom>`_.
 
+.. _git repo setup:
+
 Set up the git repository and dev environment
 =============================================
 
@@ -130,7 +132,7 @@ Coding style
 ------------
 
 Flashrom generally follows Linux kernel style:
-https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/process/coding-style.rst
+https://docs.kernel.org/process/coding-style.html
 
 The notable exception is line length limit. Our guidelines are:
 
@@ -141,12 +143,6 @@ The notable exception is line length limit. Our guidelines are:
   deep nesting.
 * Tables are the only exception to the hard limit and may be as long as needed
   for practical purposes.
-
-Our guidelines borrow heavily from `coreboot coding style
-<https://doc.coreboot.org/contributing/coding_style.html>`_ and `coreboot Gerrit
-guidelines <https://doc.coreboot.org/contributing/gerrit_guidelines.html>`_,
-and most of them apply to flashrom as well. The really important part is about
-the :ref:`sign-off procedure <sign-off>`.
 
 We try to **reuse as much code as possible** and create new files only if
 absolutely needed, so if you find a function somewhere in the tree which

@@ -23,7 +23,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "flash.h"	/* for chipaddr and flashctx */
+#include "spi.h"
 
 enum programmer_type {
 	PCI = 1, /* to detect uninitialized values */
@@ -99,6 +99,7 @@ extern const struct programmer_entry programmer_realtek_mst_i2c_spi;
 extern const struct programmer_entry programmer_satamv;
 extern const struct programmer_entry programmer_satasii;
 extern const struct programmer_entry programmer_serprog;
+extern const struct programmer_entry programmer_spidriver;
 extern const struct programmer_entry programmer_stlinkv3_spi;
 extern const struct programmer_entry programmer_usbblaster_spi;
 extern const struct programmer_entry programmer_ite_ec;
@@ -223,10 +224,6 @@ struct board_info {
 extern const struct board_info boards_known[];
 extern const struct board_info laptops_known[];
 #endif
-
-/* udelay.c */
-void internal_sleep(unsigned int usecs);
-void default_delay(unsigned int usecs);
 
 #if CONFIG_INTERNAL == 1
 /* board_enable.c */
@@ -388,6 +385,7 @@ enum ich_chipset {
 	CHIPSET_ELKHART_LAKE,
 	/* All chipsets after METEOR_LAKE should support checking BIOS_BM to get read/write access to of FREG0~15 */
 	CHIPSET_PANTHER_LAKE,
+	CHIPSET_WILDCAT_LAKE,
 };
 
 /* ichspi.c */
@@ -553,13 +551,6 @@ static inline bool spi_chip_4ba(const struct flashctx *const flash)
 		(flash->chip->feature_bits & (FEATURE_4BA_ENTER | FEATURE_4BA_ENTER_WREN | FEATURE_4BA_ENTER_EAR7));
 }
 
-/* usbdev.c */
-struct libusb_device_handle;
-struct libusb_context;
-struct libusb_device_handle *usb_dev_get_by_vid_pid_serial(
-		struct libusb_context *usb_ctx, uint16_t vid, uint16_t pid, const char *serialno);
-struct libusb_device_handle *usb_dev_get_by_vid_pid_number(
-		struct libusb_context *usb_ctx, uint16_t vid, uint16_t pid, unsigned int num);
-
+enum chipbustype get_buses_supported(void);
 
 #endif				/* !__PROGRAMMER_H__ */

@@ -22,11 +22,11 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "flash.h"
 #include "programmer.h"
 #include "hwaccess_physmap.h"
 #include "spi.h"
 #include "ich_descriptors.h"
+#include "platform/udelay.h"
 
 /* Apollo Lake */
 #define APL_REG_FREG12		0xe0	/* 32 Bytes Flash Region 12 */
@@ -1825,8 +1825,12 @@ static int ich_spi_send_multicommand(const struct flashctx *flash,
 static bool ich_spi_probe_opcode(const struct flashctx *flash, uint8_t opcode)
 {
 	int ret = find_opcode(curopcodes, opcode);
-	if ((ret == -1) && (lookup_spi_type(opcode) <= 3))
-		/* opcode is in POSSIBLE_OPCODES, report supported. */
+	if ((ret == -1) && (lookup_spi_type(opcode) <= 3) && (!ichspi_lock))
+		/* opcode is in POSSIBLE_OPCODES, report supported.
+		 * Relying on reprogramming on-the-fly
+		 * when opcode is not in curopcodes, but is in POSSIBLE_OPCODES.
+		 *
+		 * on-the-fly does not work for locked chipsets, therefore checking ichspi_lock. */
 		return true;
 	return ret >= 0;
 }
@@ -2108,6 +2112,7 @@ static void init_chipset_properties(struct swseq_data *swseq, struct hwseq_data 
 	case CHIPSET_JASPER_LAKE:
 	case CHIPSET_ELKHART_LAKE:
 	case CHIPSET_PANTHER_LAKE:
+	case CHIPSET_WILDCAT_LAKE:
 		*num_pr			= 6;	/* Includes GPR0 */
 		*reg_pr0		= PCH100_REG_FPR0;
 		swseq->reg_ssfsc	= PCH100_REG_SSFSC;
@@ -2150,6 +2155,7 @@ static void init_chipset_properties(struct swseq_data *swseq, struct hwseq_data 
 	case CHIPSET_JASPER_LAKE:
 	case CHIPSET_ELKHART_LAKE:
 	case CHIPSET_PANTHER_LAKE:
+	case CHIPSET_WILDCAT_LAKE:
 		*num_freg = 16;
 		break;
 	default:
@@ -2214,6 +2220,7 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 	case CHIPSET_JASPER_LAKE:
 	case CHIPSET_ELKHART_LAKE:
 	case CHIPSET_PANTHER_LAKE:
+	case CHIPSET_WILDCAT_LAKE:
 		tmp = mmio_readl(spibar + PCH100_REG_DLOCK);
 		msg_pdbg("0x0c: 0x%08"PRIx32" (DLOCK)\n", tmp);
 		prettyprint_pch100_reg_dlock(tmp);
@@ -2235,7 +2242,7 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 		if (ich_spi_rw_restricted)
 			msg_pinfo("Not all flash regions are freely accessible by flashrom. This is "
 				  "most likely\ndue to an active ME. Please see "
-				  "https://flashrom.org/ME for details.\n");
+				  "https://flashrom.org/user_docs/management_engine.html for details.\n");
 	}
 
 	/* Handle PR registers */
@@ -2297,6 +2304,7 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 		case CHIPSET_BAYTRAIL:
 		case CHIPSET_ELKHART_LAKE:
 		case CHIPSET_PANTHER_LAKE:
+		case CHIPSET_WILDCAT_LAKE:
 			break;
 		default:
 			ichspi_bbar = mmio_readl(spibar + ICH9_REG_BBAR);
@@ -2338,6 +2346,7 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 		case CHIPSET_JASPER_LAKE:
 		case CHIPSET_ELKHART_LAKE:
 		case CHIPSET_PANTHER_LAKE:
+		case CHIPSET_WILDCAT_LAKE:
 			break;
 		default:
 			tmp = mmio_readl(spibar + ICH9_REG_FPB);
@@ -2383,8 +2392,9 @@ static int init_ich_default(const struct programmer_cfg *cfg, void *spibar, enum
 	     ich_gen == CHIPSET_JASPER_LAKE ||
 	     ich_gen == CHIPSET_ELKHART_LAKE ||
 	     ich_gen == CHIPSET_METEOR_LAKE ||
-	     ich_gen == CHIPSET_PANTHER_LAKE)) {
-		msg_pdbg("Enabling hardware sequencing by default for Apollo/Gemini/Jasper/Elkhart/Meteor/Panther Lake.\n");
+	     ich_gen == CHIPSET_PANTHER_LAKE ||
+	     ich_gen == CHIPSET_WILDCAT_LAKE)) {
+		msg_pdbg("Enabling hardware sequencing by default for Apollo/Gemini/Jasper/Elkhart/Meteor/Panther Lake/Wildcat Lake.\n");
 		ich_spi_mode = ich_hwseq;
 	}
 
