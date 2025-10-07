@@ -660,6 +660,10 @@ int sb600_probe_spi(const struct programmer_cfg *cfg, struct pci_dev *dev)
 
 	/* Read SPI_BaseAddr */
 	tmp = pci_read_long(dev, 0xa0);
+	/* If the BAR register is 0xffffffff, ROM Armor is likely active. */
+	if (tmp == UINT32_MAX)
+		return 0;
+
 	if (amd_gen >= CHIPSET_YANGTZE)
 		tmp &= 0xffffffc0;	/* remove bits 5-0 */
 	else
