@@ -586,6 +586,11 @@ static int promontory_read_memmapped(struct flashctx *flash, uint8_t *buf,
 		unsigned int start, unsigned int len)
 {
 	struct sb600spi_data * data = (struct sb600spi_data *)flash->mst->spi.data;
+
+	/* If the flash size is bigger than 16MiB, we can't read it from the top of 4G */
+	if (flash->chip->total_size > (16 * 1024))
+		return default_spi_read(flash, buf, start, len);
+
 	if (!data->flash) {
 		map_flash(flash);
 		data->flash = flash; /* keep a copy of flashctx for unmap() on tear-down. */
@@ -634,7 +639,7 @@ static const struct spi_master spi_master_yangtze = {
 };
 
 static const struct spi_master spi_master_promontory = {
-	.max_data_read	= MAX_DATA_READ_UNLIMITED,
+	.max_data_read	= FIFO_SIZE_YANGTZE - 3,
 	.max_data_write	= FIFO_SIZE_YANGTZE - 3,
 	.command	= spi100_spi_send_command,
 	.multicommand	= default_spi_send_multicommand,
