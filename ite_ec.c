@@ -31,6 +31,7 @@
 #include "hwaccess_x86_io.h"
 #include "programmer.h"
 #include "ite_ec.h"
+#include "platform/udelay.h"
 
 #define EC_CMD_ERASE_ALL    0x01
 #define EC_CMD_WRITE_BLOCK  0x02
@@ -503,7 +504,7 @@ static int ite_ec_probe(struct flashctx *flash)
 	flash->chip->page_size = BYTES_PER_BLOCK;
 	flash->chip->total_size = ctx_data->rom_size_in_blocks * KBYTES_PER_BLOCK;
 	/* This EC supports only write granularity of 64KiB */
-	flash->chip->gran = write_gran_64kbytes;
+	flash->chip->gran = WRITE_GRAN_64KBYTES;
 	/*
 	 * Erase operation must be done in one sway.
 	 * So report an eraser for the whole chip size.

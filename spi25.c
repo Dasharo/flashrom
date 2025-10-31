@@ -21,7 +21,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdbool.h>
-#include "flash.h"
 #include "flashchips.h"
 #include "chipdrivers.h"
 #include "programmer.h"
@@ -141,7 +140,7 @@ static int compare_id(const struct flashctx *flash, uint32_t id1, uint32_t id2)
 {
 	const struct flashchip *chip = flash->chip;
 
-	msg_cdbg("%s: id1 0x%02x, id2 0x%02x\n", __func__, id1, id2);
+	msg_cdbg("%s: id1 0x%02"PRIx32", id2 0x%02"PRIx32"\n", __func__, id1, id2);
 	if (id1 == chip->manufacture_id && id2 == chip->model_id)
 		return 1;
 
@@ -232,7 +231,7 @@ int probe_spi_res1(struct flashctx *flash)
 
 	id2 = readarr[0];
 
-	msg_cdbg("%s: id 0x%x\n", __func__, id2);
+	msg_cdbg("%s: id 0x%"PRIx32"\n", __func__, id2);
 
 	if (id2 != flash->chip->model_id)
 		return 0;
@@ -252,7 +251,7 @@ int probe_spi_res2(struct flashctx *flash)
 
 	id1 = id_cache[RES2].bytes[0];
 	id2 = id_cache[RES2].bytes[1];
-	msg_cdbg("%s: id1 0x%x, id2 0x%x\n", __func__, id1, id2);
+	msg_cdbg("%s: id1 0x%"PRIx32", id2 0x%"PRIx32"\n", __func__, id1, id2);
 
 	if (id1 != flash->chip->manufacture_id || id2 != flash->chip->model_id)
 		return 0;
@@ -272,7 +271,7 @@ int probe_spi_res3(struct flashctx *flash)
 
 	id1 = (id_cache[RES3].bytes[0] << 8) | id_cache[RES3].bytes[1];
 	id2 = id_cache[RES3].bytes[3];
-	msg_cdbg("%s: id1 0x%x, id2 0x%x\n", __func__, id1, id2);
+	msg_cdbg("%s: id1 0x%"PRIx32", id2 0x%"PRIx32"\n", __func__, id1, id2);
 
 	if (id1 != flash->chip->manufacture_id || id2 != flash->chip->model_id)
 		return 0;
@@ -294,7 +293,7 @@ int probe_spi_at25f(struct flashctx *flash)
 	id1 = readarr[0];
 	id2 = readarr[1];
 
-	msg_cdbg("%s: id1 0x%02x, id2 0x%02x\n", __func__, id1, id2);
+	msg_cdbg("%s: id1 0x%02"PRIx32", id2 0x%02"PRIx32"\n", __func__, id1, id2);
 
 	if (id1 == flash->chip->manufacture_id && id2 == flash->chip->model_id)
 		return 1;
@@ -313,7 +312,7 @@ static int spi_poll_wip(struct flashctx *const flash, const unsigned int poll_de
 		if (!(status & SPI_SR_WIP))
 			return 0;
 
-		programmer_delay(poll_delay);
+		programmer_delay(flash, poll_delay);
 	}
 }
 
@@ -619,48 +618,36 @@ int spi_block_erase_dc(struct flashctx *flash, unsigned int addr, unsigned int b
 }
 
 static const struct {
-	erasefunc_t *func;
+	enum block_erase_func func;
 	uint8_t opcode;
-} function_opcode_list[] = {
-	{&spi_block_erase_20, 0x20},
-	{&spi_block_erase_21, 0x21},
-	{&spi_block_erase_50, 0x50},
-	{&spi_block_erase_52, 0x52},
-	{&spi_block_erase_53, 0x53},
-	{&spi_block_erase_5c, 0x5c},
-	{&spi_block_erase_60, 0x60},
-	{&spi_block_erase_62, 0x62},
-	{&spi_block_erase_81, 0x81},
-	{&spi_block_erase_c4, 0xc4},
-	{&spi_block_erase_c7, 0xc7},
-	{&spi_block_erase_d7, 0xd7},
-	{&spi_block_erase_d8, 0xd8},
-	{&spi_block_erase_db, 0xdb},
-	{&spi_block_erase_dc, 0xdc},
+} spi25_function_opcode_list[] = {
+	{SPI_BLOCK_ERASE_20, 0x20},
+	{SPI_BLOCK_ERASE_21, 0x21},
+	{SPI_BLOCK_ERASE_50, 0x50},
+	{SPI_BLOCK_ERASE_52, 0x52},
+	{SPI_BLOCK_ERASE_53, 0x53},
+	{SPI_BLOCK_ERASE_5C, 0x5c},
+	{SPI_BLOCK_ERASE_60, 0x60},
+	{SPI_BLOCK_ERASE_62, 0x62},
+	{SPI_BLOCK_ERASE_81, 0x81},
+	{SPI_BLOCK_ERASE_C4, 0xc4},
+	{SPI_BLOCK_ERASE_C7, 0xc7},
+	{SPI_BLOCK_ERASE_D7, 0xd7},
+	{SPI_BLOCK_ERASE_D8, 0xd8},
+	{SPI_BLOCK_ERASE_DB, 0xdb},
+	{SPI_BLOCK_ERASE_DC, 0xdc},
 };
 
-erasefunc_t *spi_get_erasefn_from_opcode(uint8_t opcode)
+enum block_erase_func spi25_get_erasefn_from_opcode(uint8_t opcode)
 {
 	size_t i;
-	for (i = 0; i < ARRAY_SIZE(function_opcode_list); i++) {
-		if (function_opcode_list[i].opcode == opcode)
-			return function_opcode_list[i].func;
+	for (i = 0; i < ARRAY_SIZE(spi25_function_opcode_list); i++) {
+		if (spi25_function_opcode_list[i].opcode == opcode)
+			return spi25_function_opcode_list[i].func;
 	}
 	msg_cinfo("%s: unknown erase opcode (0x%02x). Please report "
 			  "this at flashrom@flashrom.org\n", __func__, opcode);
-	return NULL;
-}
-
-uint8_t spi_get_opcode_from_erasefn(erasefunc_t *func)
-{
-	size_t i;
-	for (i = 0; i < ARRAY_SIZE(function_opcode_list); i++) {
-		if (function_opcode_list[i].func == func)
-			return function_opcode_list[i].opcode;
-	}
-	msg_cinfo("%s: unknown erase function (0x%p). Please report "
-			"this at flashrom@flashrom.org\n", __func__, func);
-	return 0x00; //Assuming 0x00 is not a erase function opcode
+	return NO_BLOCK_ERASE_FUNC;
 }
 
 static int spi_nbyte_program(struct flashctx *flash, unsigned int addr, const uint8_t *bytes, unsigned int len)
@@ -693,14 +680,12 @@ int spi_read_chunked(struct flashctx *flash, uint8_t *buf, unsigned int start,
 {
 	int ret;
 	size_t to_read;
-	size_t start_address = start;
-	size_t end_address = len - start;
 	for (; len; len -= to_read, buf += to_read, start += to_read) {
 		to_read = min(chunksize, len);
 		ret = spi_nbyte_read(flash, start, buf, to_read);
 		if (ret)
 			return ret;
-		update_progress(flash, FLASHROM_PROGRESS_READ, start - start_address + to_read, end_address);
+		update_progress(flash, FLASHROM_PROGRESS_READ, to_read);
 	}
 	return 0;
 }
@@ -720,8 +705,6 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 	 * we're OK for now.
 	 */
 	unsigned int page_size = flash->chip->page_size;
-	size_t start_address = start;
-	size_t end_address = len - start;
 
 	/* Warning: This loop has a very unusual condition and body.
 	 * The loop needs to go through each page with at least one affected
@@ -745,8 +728,9 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 			rc = spi_nbyte_program(flash, starthere + j, buf + starthere - start + j, towrite);
 			if (rc)
 				return rc;
+
+			update_progress(flash, FLASHROM_PROGRESS_WRITE, towrite);
 		}
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, start - start_address + lenhere, end_address);
 	}
 
 	return 0;
@@ -766,7 +750,7 @@ int spi_chip_write_1(struct flashctx *flash, const uint8_t *buf, unsigned int st
 	for (i = start; i < start + len; i++) {
 		if (spi_nbyte_program(flash, i, buf + i - start, 1))
 			return 1;
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i - start, len - start);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, 1);
 	}
 	return 0;
 }

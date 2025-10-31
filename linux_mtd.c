@@ -49,7 +49,7 @@ static int read_sysfs_string(const char *sysfs_path, const char *filename, char 
 	int i;
 	size_t bytes_read;
 	FILE *fp;
-	char path[strlen(LINUX_MTD_SYSFS_ROOT) + 32];
+	char path[sizeof(LINUX_MTD_SYSFS_ROOT) + 31];
 
 	snprintf(path, sizeof(path), "%s/%s", sysfs_path, filename);
 
@@ -179,7 +179,7 @@ static int linux_mtd_probe(struct flashctx *flash)
 
 	if (data->no_erase)
 		flash->chip->feature_bits |= FEATURE_NO_ERASE;
-	flash->chip->tested = TEST_OK_PREW;
+	flash->chip->tested = TEST_OK_PREWB;
 	flash->chip->total_size = data->total_size / 1024;	/* bytes -> kB */
 	flash->chip->block_erasers[0].eraseblocks[0].size = data->erasesize;
 	flash->chip->block_erasers[0].eraseblocks[0].count =
@@ -215,7 +215,7 @@ static int linux_mtd_read(struct flashctx *flash, uint8_t *buf,
 		}
 
 		i += step;
-		update_progress(flash, FLASHROM_PROGRESS_READ, i, len);
+		update_progress(flash, FLASHROM_PROGRESS_READ, step);
 	}
 
 	return 0;
@@ -258,7 +258,7 @@ static int linux_mtd_write(struct flashctx *flash, const uint8_t *buf,
 		}
 
 		i += step;
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, step);
 	}
 
 	return 0;
@@ -295,7 +295,6 @@ static int linux_mtd_erase(struct flashctx *flash,
 		                 __func__, ret, strerror(errno));
 		        return 1;
 		}
-		update_progress(flash, FLASHROM_PROGRESS_ERASE, u + data->erasesize, len);
 	}
 
 	return 0;
@@ -429,6 +428,14 @@ static enum flashrom_wp_result linux_mtd_wp_get_available_ranges(struct flashrom
 	return FLASHROM_WP_ERR_RANGE_LIST_UNAVAILABLE;
 }
 
+static void linux_mtd_nop_delay(const struct flashctx *flash, unsigned int usecs)
+{
+	/*
+	 * Ignore delay requests. The Linux MTD framework brokers all flash
+	 * protocol, including timing, resets, etc.
+	 */
+}
+
 static const struct opaque_master linux_mtd_opaque_master = {
 	/* max_data_{read,write} don't have any effect for this programmer */
 	.max_data_read	= MAX_DATA_UNSPECIFIED,
@@ -441,6 +448,7 @@ static const struct opaque_master linux_mtd_opaque_master = {
 	.wp_read_cfg	= linux_mtd_wp_read_cfg,
 	.wp_write_cfg	= linux_mtd_wp_write_cfg,
 	.wp_get_ranges	= linux_mtd_wp_get_available_ranges,
+	.delay		= linux_mtd_nop_delay,
 };
 
 /* Returns 0 if setup is successful, non-zero to indicate error */

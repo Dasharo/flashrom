@@ -26,7 +26,7 @@
  * functions.
  */
 
-/* chunksize is 1 */
+/* chunksize is 2 */
 int write_en29lv640b(struct flashctx *flash, const uint8_t *src, unsigned int start, unsigned int len)
 {
 	unsigned int i;
@@ -48,7 +48,7 @@ int write_en29lv640b(struct flashctx *flash, const uint8_t *src, unsigned int st
 #endif
 		dst += 2;
 		src += 2;
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i + 2, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, 2);
 	}
 
 	/* FIXME: Ignore errors for now. */
@@ -64,7 +64,7 @@ int probe_en29lv640b(struct flashctx *flash)
 	chip_writeb(flash, 0x55, bios + 0x555);
 	chip_writeb(flash, 0x90, bios + 0xAAA);
 
-	programmer_delay(10);
+	programmer_delay(flash, 10);
 
 	id1 = chip_readb(flash, bios + 0x200);
 	id1 |= (chip_readb(flash, bios) << 8);
@@ -73,7 +73,7 @@ int probe_en29lv640b(struct flashctx *flash)
 
 	chip_writeb(flash, 0xF0, bios + 0xAAA);
 
-	programmer_delay(10);
+	programmer_delay(flash, 10);
 
 	msg_cdbg("%s: id1 0x%04x, id2 0x%04x\n", __func__, id1, id2);
 

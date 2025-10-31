@@ -28,14 +28,13 @@
 #include "programmer.h"
 #include "spi.h"
 
-#define SKIP_TEST(name) \
-	void name (void **state) { skip(); }
-
 void run_basic_lifecycle(void **state, const struct io_mock *io,
 		const struct programmer_entry *prog, const char *param);
 
-void run_probe_lifecycle(void **state, const struct io_mock *io,
-		const struct programmer_entry *prog, const char *param, const char *const chip_name);
+void run_probe_v2_lifecycle(void **state, const struct io_mock *io,
+		const struct programmer_entry *prog, const char *param,
+		const char *const chip_name,
+		const char **expected_matched_names, unsigned int expected_matched_count);
 
 void run_init_error_path(void **state, const struct io_mock *io,
 		const struct programmer_entry *prog, const char *param, const int error_code);

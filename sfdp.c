@@ -16,7 +16,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "flash.h"
 #include "spi.h"
 #include "chipdrivers.h"
 
@@ -35,7 +34,7 @@ static int spi_sfdp_read_sfdp_chunk(struct flashctx *flash, uint32_t address, ui
 		 */
 		0
 	};
-	msg_cspew("%s: addr=0x%x, len=%d, data:\n", __func__, address, len);
+	msg_cspew("%s: addr=0x%"PRIx32", len=%d, data:\n", __func__, address, len);
 	newbuf = malloc(len + 1);
 	if (!newbuf)
 		return SPI_PROGRAMMER_ERROR;
@@ -81,9 +80,9 @@ static int sfdp_add_uniform_eraser(struct flashchip *chip, uint8_t opcode, uint3
 {
 	int i;
 	uint32_t total_size = chip->total_size * 1024;
-	erasefunc_t *erasefn = spi_get_erasefn_from_opcode(opcode);
+	enum block_erase_func erasefn = spi25_get_erasefn_from_opcode(opcode);
 
-	if (erasefn == NULL || total_size == 0 || block_size == 0 ||
+	if (erasefn == NO_BLOCK_ERASE_FUNC || total_size == 0 || block_size == 0 ||
 	    total_size % block_size != 0) {
 		msg_cdbg("%s: invalid input, please report to "
 			 "flashrom@flashrom.org\n", __func__);
@@ -96,12 +95,12 @@ static int sfdp_add_uniform_eraser(struct flashchip *chip, uint8_t opcode, uint3
 		if (eraser->eraseblocks[0].size == block_size &&
 		    eraser->block_erase == erasefn) {
 			msg_cdbg2("  Tried to add a duplicate block eraser: "
-				  "%d x %d B with opcode 0x%02x.\n",
+				  "%"PRId32" x %"PRId32" B with opcode 0x%02x.\n",
 				  total_size/block_size, block_size, opcode);
 			return 1;
 		}
 		if (eraser->eraseblocks[0].size != 0 ||
-		    eraser->block_erase != NULL) {
+		    eraser->block_erase != NO_BLOCK_ERASE_FUNC) {
 			msg_cspew("  Block Eraser %d is already occupied.\n",
 				  i);
 			continue;
@@ -110,7 +109,7 @@ static int sfdp_add_uniform_eraser(struct flashchip *chip, uint8_t opcode, uint3
 		eraser->block_erase = erasefn;
 		eraser->eraseblocks[0].size = block_size;
 		eraser->eraseblocks[0].count = total_size/block_size;
-		msg_cdbg2("  Block eraser %d: %d x %d B with opcode "
+		msg_cdbg2("  Block eraser %d: %"PRId32" x %"PRId32" B with opcode "
 			  "0x%02x\n", i, total_size/block_size, block_size,
 			  opcode);
 		return 0;
@@ -179,11 +178,11 @@ static int sfdp_fill_flash(struct flashchip *chip, uint8_t *buf, uint16_t len)
 	if (tmp32 & (1 << 2)) {
 		msg_cdbg2("at least 64 B.\n");
 		chip->page_size = 64;
-		chip->write = spi_chip_write_256;
+		chip->write = SPI_CHIP_WRITE256;
 	} else {
 		msg_cdbg2("1 B only.\n");
 		chip->page_size = 256;
-		chip->write = spi_chip_write_1;
+		chip->write = SPI_CHIP_WRITE1;
 	}
 
 	if ((tmp32 & 0x3) == 0x1) {
@@ -252,6 +251,88 @@ done:
 	return 0;
 }
 
+static unsigned int bits_to_counter_delay(const uint8_t bits)
+{
+	unsigned int value = bits & 0xf;
+
+	switch ((bits & (0b11 << 4)) >> 4) {
+		case 0b00:
+			value *= 1;
+			break;
+		case 0b01:
+			value *= 16;
+			break;
+		case 0b10:
+			value *= 128;
+			break;
+		case 0b11:
+			value *= 1000;
+			break;
+	}
+
+	return value;
+}
+
+static int parse_rpmc_parameter_table(struct flashchip *const chip, const uint8_t *const buf, const uint16_t len)
+{
+	if (len != 2 * 4) {
+		msg_cdbg("Length of RPMC parameter table is wrong, skipping it\n");
+		return 1;
+	}
+
+	msg_cdbg("Parsing rpmc parameter table...\n");
+
+	// first dword
+	uint32_t first_dword =	((unsigned int)buf[(4 * 0) + 0]);
+	first_dword |=		((unsigned int)buf[(4 * 0) + 1]) << 8;
+	first_dword |=		((unsigned int)buf[(4 * 0) + 2]) << 16;
+	first_dword |=		((unsigned int)buf[(4 * 0) + 3]) << 24;
+
+	if ((first_dword & 0b1) != 0) {
+		// flash hardening is not supported
+		msg_cdbg("Flash Hardening not supported\n");
+		goto done;
+	}
+
+	chip->feature_bits |= FEATURE_FLASH_HARDENING;
+
+	chip->rpmc_ctx.busy_polling_method = (first_dword & (1 << 2)) >> 2;
+	msg_cspew("Busy polling method: %u\n", chip->rpmc_ctx.busy_polling_method);
+
+	chip->rpmc_ctx.num_counters = ((first_dword & (0xf << 4)) >> 4) + 1;
+	msg_cspew("Number of counters: %u\n", chip->rpmc_ctx.num_counters);
+
+	chip->rpmc_ctx.op1_opcode = (first_dword & (0xff << 8)) >> 8;
+	msg_cspew("OP1 opcode: 0x%02x\n", chip->rpmc_ctx.op1_opcode);
+
+	chip->rpmc_ctx.op2_opcode = (first_dword & (0xff << 16)) >> 16;
+	msg_cspew("OP2 opcode: 0x%02x\n", chip->rpmc_ctx.op2_opcode);
+
+	chip->rpmc_ctx.update_rate = 5 * (1 << ((first_dword & (0xf << 24)) >> 24));
+	msg_cspew("Update rate: %u seconds\n", chip->rpmc_ctx.update_rate);
+
+	// second dword
+	uint32_t second_dword =	((unsigned int)buf[(4 * 1) + 0]);
+	second_dword |=		((unsigned int)buf[(4 * 1) + 1]) << 8;
+	second_dword |=		((unsigned int)buf[(4 * 1) + 2]) << 16;
+	second_dword |=		((unsigned int)buf[(4 * 1) + 3]) << 24;
+
+	chip->rpmc_ctx.polling_delay_read_counter_us = bits_to_counter_delay(second_dword & 0xf);
+	msg_cspew("Read counter polling delay: %u us\n", chip->rpmc_ctx.polling_delay_read_counter_us);
+
+	chip->rpmc_ctx.polling_short_delay_write_counter_us = bits_to_counter_delay((second_dword >> 8) & 0xf);
+	msg_cspew("Write counter short polling delay: %u us\n",
+		  chip->rpmc_ctx.polling_short_delay_write_counter_us);
+
+	chip->rpmc_ctx.polling_long_delay_write_counter_us = bits_to_counter_delay((second_dword >> 16) & 0xf) * 1000;
+	msg_cspew("Write counter long polling delay: %u us\n",
+		  chip->rpmc_ctx.polling_long_delay_write_counter_us);
+
+done:
+	msg_cdbg("done.\n");
+	return 0;
+}
+
 int probe_spi_sfdp(struct flashctx *flash)
 {
 	int ret = 0;
@@ -274,7 +355,7 @@ int probe_spi_sfdp(struct flashctx *flash)
 	tmp32 |= ((unsigned int)buf[3]) << 24;
 
 	if (tmp32 != 0x50444653) {
-		msg_cdbg2("Signature = 0x%08x (should be 0x50444653)\n", tmp32);
+		msg_cdbg2("Signature = 0x%08"PRIx32" (should be 0x50444653)\n", tmp32);
 		msg_cdbg("No SFDP signature found.\n");
 		return 0;
 	}
@@ -320,7 +401,7 @@ int probe_spi_sfdp(struct flashctx *flash)
 			  hdrs[i].v_major, hdrs[i].v_minor);
 		len = hdrs[i].len * 4;
 		tmp32 = hdrs[i].ptp;
-		msg_cdbg2("  Length %d B, Parameter Table Pointer 0x%06x\n",
+		msg_cdbg2("  Length %d B, Parameter Table Pointer 0x%06"PRIx32"\n",
 			  len, tmp32);
 
 		if (tmp32 + len >= (1 << 24)) {
@@ -345,7 +426,7 @@ int probe_spi_sfdp(struct flashctx *flash)
 		msg_cspew("  Parameter table contents:\n");
 		for (tmp32 = 0; tmp32 < len; tmp32++) {
 			if ((tmp32 % 8) == 0) {
-				msg_cspew("    0x%04x: ", tmp32);
+				msg_cspew("    0x%04"PRIx32": ", tmp32);
 			}
 			msg_cspew(" %02x", tbuf[tmp32]);
 			if ((tmp32 % 8) == 7) {
@@ -359,23 +440,44 @@ int probe_spi_sfdp(struct flashctx *flash)
 		}
 		msg_cspew("\n");
 
-		if (i == 0) { /* Mandatory JEDEC SFDP parameter table */
-			if (hdrs[i].id != 0)
-				msg_cdbg("ID of the mandatory JEDEC SFDP "
-					 "parameter table is not 0 as demanded "
-					 "by JESD216 (warning only).\n");
-
-			if (hdrs[i].v_major != 0x01) {
+		if (i == 0) {
+			if (hdrs[i].id != 0) {
+				msg_cerr("ID of the mandatory JEDEC SFDP "
+					  "parameter table is not 0 as demanded "
+					  "by JESD216.\n");
+			} else if (hdrs[i].v_major != 0x01) {
 				msg_cdbg("The chip contains an unknown "
-					  "version of the JEDEC flash "
-					  "parameters table, skipping it.\n");
+					 "version of the JEDEC flash "
+					 "parameters table (Version: %u.%u), skipping it.\n",
+					 hdrs[i].v_major, hdrs[i].v_minor);
 			} else if (len != 4 * 4 && len < 9 * 4) {
 				msg_cdbg("Length of the mandatory JEDEC SFDP "
 					 "parameter table is wrong (%d B), "
 					 "skipping it.\n", len);
-			} else if (sfdp_fill_flash(flash->chip, tbuf, len) == 0)
+			} else if (sfdp_fill_flash(flash->chip, tbuf, len) == 0) {
 				ret = 1;
+			}
+		} else {
+			/* TODO: implement parsing for other pages */
+			switch (hdrs[i].id){
+				case 0x03: /* RPMC parameter table as specified in JESD260 */
+					if (hdrs[i].v_major != 0x01 || hdrs[i].v_minor != 0x0) {
+						msg_cdbg("The chip contains an unknown "
+							 "version of the JEDEC RPMC "
+							 "parameters table (Version: %u.%u), skipping it.\n",
+							 hdrs[i].v_major, hdrs[i].v_minor);
+					} else {
+						parse_rpmc_parameter_table(flash->chip, tbuf, len);
+					}
+					break;
+				default:
+					msg_cdbg("Support for SFDP Page with ID 0x%02x not implemented"
+						 ", skipping it.\n",
+						 hdrs[i].id);
+					break;
+			}
 		}
+
 		free(tbuf);
 	}
 

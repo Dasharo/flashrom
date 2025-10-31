@@ -397,7 +397,7 @@ static int realtek_mst_i2c_spi_write_256(struct flashctx *flash, const uint8_t *
 		ret |= realtek_mst_i2c_execute_write(fd);
 		if (ret)
 			break;
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i + RTK_PAGE_SIZE, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, page_len);
 	}
 
 	return ret;
@@ -436,12 +436,10 @@ static const struct spi_master spi_master_i2c_realtek_mst = {
 	.max_data_read	= 16,
 	.max_data_write	= 8,
 	.command	= realtek_mst_i2c_spi_send_command,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= realtek_mst_i2c_spi_read,
 	.write_256	= realtek_mst_i2c_spi_write_256,
 	.write_aai	= realtek_mst_i2c_spi_write_aai,
 	.shutdown	= realtek_mst_i2c_spi_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 static int get_params(const struct programmer_cfg *cfg, bool *reset, bool *enter_isp, bool *allow_brick)

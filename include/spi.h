@@ -16,6 +16,8 @@
 #ifndef __SPI_H__
 #define __SPI_H__ 1
 
+#include "flash.h"
+
 /*
  * Contains the generic SPI headers
  */
@@ -167,6 +169,21 @@
 #define JEDEC_WRSR3_OUTSIZE	0x02
 #define JEDEC_WRSR3_INSIZE	0x00
 
+/* Read Security Register */
+#define JEDEC_RDSCUR		0x2b
+#define JEDEC_RDSCUR_OUTSIZE	0x01
+#define JEDEC_RDSCUR_INSIZE	0x01
+
+/* Write Security Register */
+#define JEDEC_WRSCUR		0x2f
+#define JEDEC_WRSCUR_OUTSIZE	0x01
+#define JEDEC_WRSCUR_INSIZE	0x00
+
+/* Read Configuration Register */
+#define JEDEC_RDCR		0x15
+#define JEDEC_RDCR_OUTSIZE	0x01
+#define JEDEC_RDCR_INSIZE	0x01
+
 /* Enter 4-byte Address Mode */
 #define JEDEC_ENTER_4_BYTE_ADDR_MODE	0xB7
 
@@ -219,6 +236,16 @@
 #define SPI_INVALID_LENGTH	-4
 #define SPI_FLASHROM_BUG	-5
 #define SPI_PROGRAMMER_ERROR	-6
+
+struct spi_command {
+	unsigned int writecnt;
+	unsigned int readcnt;
+	const unsigned char *writearr;
+	unsigned char *readarr;
+};
+#define NULL_SPI_CMD { 0, 0, NULL, NULL, }
+int spi_send_command(const struct flashctx *flash, unsigned int writecnt, unsigned int readcnt, const unsigned char *writearr, unsigned char *readarr);
+int spi_send_multicommand(const struct flashctx *flash, struct spi_command *cmds);
 
 void clear_spi_id_cache(void);
 

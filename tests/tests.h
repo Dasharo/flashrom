@@ -16,6 +16,9 @@
 #ifndef TESTS_H
 #define TESTS_H
 
+#include <fcntl.h>
+#include <include/test.h>
+
 /* helpers.c */
 void address_to_bits_test_success(void **state);
 void bitcount_test_success(void **state);
@@ -28,10 +31,17 @@ void reverse_bytes_test_success(void **state);
 /* flashrom.c */
 void flashbuses_to_text_test_success(void **state);
 
+/* libflashrom.c */
+void flashrom_set_log_callback_test_success(void **state);
+void flashrom_set_log_callback_v2_test_success(void **state);
+void flashrom_set_log_level_test_success(void **state);
+void flashrom_supported_programmers_test_success(void **state);
+void probe_v2_error_code_propagation(void **state);
+
 /* spi25.c */
 void spi_write_enable_test_success(void **state);
 void spi_write_disable_test_success(void **state);
-void spi_read_chunked_test_success(void **state);
+void default_spi_read_test_success(void **state);
 void probe_spi_rdid_test_success(void **state);
 void probe_spi_rdid4_test_success(void **state);
 void probe_spi_rems_test_success(void **state);
@@ -44,13 +54,25 @@ void probe_spi_st95_test_success(void **state); /* spi95.c */
 /* lifecycle.c */
 void dummy_basic_lifecycle_test_success(void **state);
 void dummy_probe_lifecycle_test_success(void **state);
+void dummy_probe_v2_one_match_for_W25Q128FV(void **state);
+void dummy_probe_v2_six_matches_for_MX25L6436(void **state);
+void dummy_probe_v2_no_matches_found(void **state);
 void dummy_probe_variable_size_test_success(void **state);
 void dummy_init_fails_unhandled_param_test_success(void **state);
 void dummy_init_success_invalid_param_test_success(void **state);
 void dummy_init_success_unhandled_param_test_success(void **state);
 void dummy_null_prog_param_test_success(void **state);
+void dummy_all_buses_test_success(void **state);
+void dummy_freq_param_init(void **state);
+void dummy_probe_and_read(void **state);
+void dummy_probe_and_write(void **state);
+void dummy_probe_and_erase(void **state);
 void nicrealtek_basic_lifecycle_test_success(void **state);
 void raiden_debug_basic_lifecycle_test_success(void **state);
+void raiden_debug_targetAP_basic_lifecycle_test_success(void **state);
+void raiden_debug_targetEC_basic_lifecycle_test_success(void **state);
+void raiden_debug_target0_basic_lifecycle_test_success(void **state);
+void raiden_debug_target1_basic_lifecycle_test_success(void **state);
 void dediprog_basic_lifecycle_test_success(void **state);
 void linux_mtd_probe_lifecycle_test_success(void **state);
 void linux_spi_probe_lifecycle_test_success(void **state);
@@ -60,6 +82,9 @@ void mediatek_i2c_spi_basic_lifecycle_test_success(void **state);
 void mediatek_i2c_no_allow_brick_test_success(void **state);
 void realtek_mst_basic_lifecycle_test_success(void **state);
 void realtek_mst_no_allow_brick_test_success(void **state);
+void ch341a_spi_basic_lifecycle_test_success(void **state);
+void ch341a_spi_probe_lifecycle_test_success(void **state);
+void spidriver_probe_lifecycle_test_success(void **state);
 
 /* layout.c */
 void included_regions_dont_overlap_test_success(void **state);
@@ -71,11 +96,17 @@ void layout_region_invalid_range_test_success(void **state);
 
 /* chip.c */
 void erase_chip_test_success(void **state);
+void erase_chip_with_progress(void **state);
 void erase_chip_with_dummyflasher_test_success(void **state);
 void read_chip_test_success(void **state);
+void read_chip_with_progress(void **state);
 void read_chip_with_dummyflasher_test_success(void **state);
 void write_chip_test_success(void **state);
+void write_chip_with_progress(void **state);
 void write_chip_with_dummyflasher_test_success(void **state);
+void write_chip_feature_no_erase(void **state);
+void write_chip_feature_no_erase_with_progress(void **state);
+void write_nonaligned_region_with_dummyflasher_test_success(void **state);
 void verify_chip_test_success(void **state);
 void verify_chip_with_dummyflasher_test_success(void **state);
 
@@ -86,5 +117,21 @@ void switch_wp_mode_dummyflasher_test_success(void **state);
 void wp_init_from_status_dummyflasher_test_success(void **state);
 void full_chip_erase_with_wp_dummyflasher_test_success(void **state);
 void partial_chip_erase_with_wp_dummyflasher_test_success(void **state);
+void wp_get_register_values_and_masks(void **state);
+
+/* selfcheck.c */
+void selfcheck_programmer_table(void **state);
+void selfcheck_flashchips_table(void **state);
+void selfcheck_eraseblocks(void **state);
+void selfcheck_board_matches_table(void **state);
+
+/* erase_func_algo.c */
+struct CMUnitTest *get_erase_func_algo_tests(size_t *num_tests);
+struct CMUnitTest *get_erase_protected_region_algo_tests(size_t *num_tests);
+void erase_function_algo_test_success(void **state);
+void write_function_algo_test_success(void **state);
+
+/* udelay.c */
+void udelay_test_short(void **state);
 
 #endif /* TESTS_H */

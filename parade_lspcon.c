@@ -354,7 +354,7 @@ static int parade_lspcon_read(struct flashctx *flash, uint8_t *buf,
 	for (i = 0; i < len; i += TUNNEL_PAGE_SIZE) {
 		ret |= parade_lspcon_map_page(fd, start + i);
 		ret |= parade_lspcon_read_data(fd, PAGE_ADDRESS, buf + i, min(len - i, TUNNEL_PAGE_SIZE));
-		update_progress(flash, FLASHROM_PROGRESS_READ, i + TUNNEL_PAGE_SIZE, len);
+		update_progress(flash, FLASHROM_PROGRESS_READ, TUNNEL_PAGE_SIZE);
 	}
 
 	return ret;
@@ -395,7 +395,7 @@ static int parade_lspcon_write_256(struct flashctx *flash, const uint8_t *buf,
 	for (unsigned int i = 0; i < len; i += TUNNEL_PAGE_SIZE) {
 		ret |= parade_lspcon_map_page(fd, start + i);
 		ret |= parade_lspcon_write_page(fd, buf + i, min(len - i, TUNNEL_PAGE_SIZE));
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i + TUNNEL_PAGE_SIZE, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, TUNNEL_PAGE_SIZE);
 	}
 
 	ret |= parade_lspcon_enable_write_protection(fd);
@@ -432,12 +432,10 @@ static const struct spi_master spi_master_parade_lspcon = {
 	.max_data_read	= 16,
 	.max_data_write	= 12,
 	.command	= parade_lspcon_send_command,
-	.multicommand	= default_spi_send_multicommand,
 	.read		= parade_lspcon_read,
 	.write_256	= parade_lspcon_write_256,
 	.write_aai	= parade_lspcon_write_aai,
 	.shutdown	= parade_lspcon_shutdown,
-	.probe_opcode	= default_spi_probe_opcode,
 };
 
 static int get_params(const struct programmer_cfg *cfg, bool *allow_brick)

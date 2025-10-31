@@ -39,40 +39,31 @@ extern crate log;
 mod cmd;
 mod flashromlib;
 
-use std::{error, fmt};
+use std::{error, fmt, path::Path};
 
-pub use cmd::{dut_ctrl_toggle_wp, FlashromCmd};
+pub use cmd::FlashromCmd;
 pub use flashromlib::FlashromLib;
 
 pub use libflashrom::{
-    flashrom_log_level, FLASHROM_MSG_DEBUG, FLASHROM_MSG_DEBUG2, FLASHROM_MSG_ERROR,
+    flashrom_log_level, FlashromFlags, FLASHROM_MSG_DEBUG, FLASHROM_MSG_DEBUG2, FLASHROM_MSG_ERROR,
     FLASHROM_MSG_INFO, FLASHROM_MSG_SPEW, FLASHROM_MSG_WARN,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum FlashChip {
-    EC,
-    HOST,
-    SERVO,
-    DEDIPROG,
+    INTERNAL,
 }
 
 impl FlashChip {
     pub fn from(s: &str) -> Result<FlashChip, &str> {
         match s {
-            "ec" => Ok(FlashChip::EC),
-            "host" => Ok(FlashChip::HOST),
-            "servo" => Ok(FlashChip::SERVO),
-            "dediprog" => Ok(FlashChip::DEDIPROG),
+            "internal" => Ok(FlashChip::INTERNAL),
             _ => Err("cannot convert str to enum"),
         }
     }
     pub fn to(fc: FlashChip) -> &'static str {
         match fc {
-            FlashChip::EC => "ec",
-            FlashChip::HOST => "host",
-            FlashChip::SERVO => "ft2231_spi:type=servo-v2",
-            FlashChip::DEDIPROG => "dediprog",
+            FlashChip::INTERNAL => "internal",
         }
     }
 
@@ -89,8 +80,7 @@ impl FlashChip {
     /// disabled.
     pub fn can_control_hw_wp(&self) -> bool {
         match self {
-            FlashChip::HOST | FlashChip::EC => true,
-            FlashChip::SERVO | FlashChip::DEDIPROG => false,
+            FlashChip::INTERNAL => true,
         }
     }
 }
@@ -117,12 +107,6 @@ where
     }
 }
 
-pub struct ROMWriteSpecifics<'a> {
-    pub layout_file: Option<&'a str>,
-    pub write_file: Option<&'a str>,
-    pub name_file: Option<&'a str>,
-}
-
 pub trait Flashrom {
     /// Returns the size of the flash in bytes.
     fn get_size(&self) -> Result<i64, FlashromError>;
@@ -130,10 +114,7 @@ pub trait Flashrom {
     /// Returns the vendor name and the flash name.
     fn name(&self) -> Result<(String, String), FlashromError>;
 
-    /// Write only a region of the flash.
-    fn write_file_with_layout(&self, rws: &ROMWriteSpecifics) -> Result<bool, FlashromError>;
-
-    /// Set write protect status for a range.
+    /// Set write protect status and range.
     fn wp_range(&self, range: (i64, i64), wp_enable: bool) -> Result<bool, FlashromError>;
 
     /// Read the write protect regions for the flash.
@@ -143,23 +124,45 @@ pub trait Flashrom {
     fn wp_status(&self, en: bool) -> Result<bool, FlashromError>;
 
     /// Set write protect status.
+    /// If en=true sets wp_range to the whole chip (0,getsize()).
+    /// If en=false sets wp_range to (0,0).
+    /// This is due to the MTD driver, which requires wp enable to use a range
+    /// length != 0 and wp disable to have the range 0,0.
     fn wp_toggle(&self, en: bool) -> Result<bool, FlashromError>;
 
     /// Read the whole flash to the file specified by `path`.
-    fn read_into_file(&self, path: &str) -> Result<(), FlashromError>;
+    fn read_into_file(&self, path: &Path) -> Result<(), FlashromError>;
 
-    /// Read only a region of the flash.
-    fn read_region_into_file(&self, path: &str, region: &str) -> Result<(), FlashromError>;
+    /// Read only a region of the flash into the file specified by `path`. Note
+    /// the first byte written to the file is the first byte from the region.
+    fn read_region_into_file(&self, path: &Path, region: &str) -> Result<(), FlashromError>;
 
     /// Write the whole flash to the file specified by `path`.
-    fn write_from_file(&self, path: &str) -> Result<(), FlashromError>;
+    fn write_from_file(&self, path: &Path) -> Result<(), FlashromError>;
+
+    /// Write only a region of the flash.
+    /// `path` is a file of the size of the whole flash.
+    /// The `region` name corresponds to a region name in the `layout` file, not the flash.
+    fn write_from_file_region(
+        &self,
+        path: &Path,
+        region: &str,
+        layout: &Path,
+    ) -> Result<bool, FlashromError>;
 
     /// Verify the whole flash against the file specified by `path`.
-    fn verify_from_file(&self, path: &str) -> Result<(), FlashromError>;
+    fn verify_from_file(&self, path: &Path) -> Result<(), FlashromError>;
+
+    /// Verify only the region against the file specified by `path`.
+    /// Note the first byte in the file is matched against the first byte of the region.
+    fn verify_region_from_file(&self, path: &Path, region: &str) -> Result<(), FlashromError>;
 
     /// Erase the whole flash.
     fn erase(&self) -> Result<(), FlashromError>;
 
     /// Return true if the hardware write protect of this flash can be controlled.
     fn can_control_hw_wp(&self) -> bool;
+
+    /// Set flags used by the flashrom cli.
+    fn set_flags(&self, flags: &FlashromFlags) -> ();
 }

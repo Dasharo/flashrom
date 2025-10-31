@@ -16,7 +16,6 @@
  */
 
 #include <string.h>
-#include "flash.h"
 #include "chipdrivers.h"
 #include "programmer.h"
 #include "spi.h"
@@ -80,9 +79,10 @@ static unsigned int at45db_get_sector_count(struct flashctx *flash)
 	unsigned int i, j;
 	unsigned int cnt = 0;
 	for (i = 0; i < NUM_ERASEFUNCTIONS; i++) {
-		if (flash->chip->block_erasers[i].block_erase == &spi_erase_at45db_sector) {
+		const struct block_eraser *const eraser = &flash->chip->block_erasers[i];
+		if (eraser->block_erase == SPI_ERASE_AT45DB_SECTOR) {
 			for (j = 0; j < NUM_ERASEREGIONS; j++) {
-				cnt += flash->chip->block_erasers[i].eraseblocks[j].count;
+				cnt += eraser->eraseblocks[j].count;
 			}
 		}
 	}
@@ -199,12 +199,12 @@ int probe_spi_at45db(struct flashctx *flash)
 	}
 
 	switch (chip->page_size) {
-	case 256: chip->gran = write_gran_256bytes; break;
-	case 264: chip->gran = write_gran_264bytes; break;
-	case 512: chip->gran = write_gran_512bytes; break;
-	case 528: chip->gran = write_gran_528bytes; break;
-	case 1024: chip->gran = write_gran_1024bytes; break;
-	case 1056: chip->gran = write_gran_1056bytes; break;
+	case 256: chip->gran = WRITE_GRAN_256BYTES; break;
+	case 264: chip->gran = WRITE_GRAN_264BYTES; break;
+	case 512: chip->gran = WRITE_GRAN_512BYTES; break;
+	case 528: chip->gran = WRITE_GRAN_528BYTES; break;
+	case 1024: chip->gran = WRITE_GRAN_1024BYTES; break;
+	case 1056: chip->gran = WRITE_GRAN_1056BYTES; break;
 	default:
 		msg_cerr("%s: unknown page size %d.\n", __func__, chip->page_size);
 		return 0;
@@ -309,7 +309,7 @@ static int at45db_wait_ready (struct flashctx *flash, unsigned int us, unsigned 
 			return 0;
 		if (ret != 0 || retries-- == 0)
 			return 1;
-		programmer_delay(us);
+		programmer_delay(flash, us);
 	}
 }
 
@@ -550,7 +550,7 @@ int spi_write_at45db(struct flashctx *flash, const uint8_t *buf, unsigned int st
 			msg_cerr("Writing page %u failed!\n", i);
 			return 1;
 		}
-		update_progress(flash, FLASHROM_PROGRESS_WRITE, i + page_size, len);
+		update_progress(flash, FLASHROM_PROGRESS_WRITE, page_size);
 	}
 	return 0;
 }

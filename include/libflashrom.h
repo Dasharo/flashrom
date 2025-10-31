@@ -4,6 +4,8 @@
  * Copyright (C) 2010 Google Inc.
  * Copyright (C) 2012 secunet Security Networks AG
  * (Written by Nico Huber <nico.huber@secunet.com> for secunet)
+ * Copyright (C) 2025 Dmitry Zhadinets <dzhadinets@gmail.com>
+ * Copyright (C) 2025 Google LLC
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,6 +59,20 @@ enum flashrom_log_level {
 	FLASHROM_MSG_SPEW	= 5,
 };
 typedef int(flashrom_log_callback)(enum flashrom_log_level, const char *format, va_list);
+
+/**
+ * @brief Set the log level.
+ *
+ * Set a log level for messages from libflashrom.
+ * The print callback will be invoked only for messages
+ * with a log level less than or equal to the configured value.
+ * The default log level is FLASHROM_MSG_INFO.
+ *
+ * @param level The log level to be set.
+ */
+
+ void flashrom_set_log_level(enum flashrom_log_level level);
+
 /**
  * @brief Set the log callback function.
  *
@@ -69,20 +85,55 @@ typedef int(flashrom_log_callback)(enum flashrom_log_level, const char *format, 
  */
 void flashrom_set_log_callback(flashrom_log_callback *log_callback);
 
+typedef void (flashrom_log_callback_v2)(
+	enum flashrom_log_level,
+	const char* message,
+	void* user_data);
+/**
+ * @brief Set the log callback function.
+ *
+ * Set a callback function which will be invoked whenever libflashrom wants
+ * to output messages. This allows frontends to do whatever they see fit with
+ * such messages, e.g. write them to syslog, or to a file, or print them in a
+ * GUI window, etc.
+ * The message is formatted using vsnprintf
+ *
+ * @param log_callback Pointer to the new log callback function.
+ * @param user_data A pointer to data managed by the caller.
+ */
+void flashrom_set_log_callback_v2(flashrom_log_callback_v2 *log_callback, void* user_data);
+
 enum flashrom_progress_stage {
 	FLASHROM_PROGRESS_READ,
 	FLASHROM_PROGRESS_WRITE,
 	FLASHROM_PROGRESS_ERASE,
 	FLASHROM_PROGRESS_NR,
 };
+
 struct flashrom_progress {
 	enum flashrom_progress_stage stage;
 	size_t current;
 	size_t total;
 	void *user_data;
 };
+
 struct flashrom_flashctx;
 typedef void(flashrom_progress_callback)(struct flashrom_flashctx *flashctx);
+
+/**
+ * @deprecated Use flashrom_set_progress_callback_v2 instead
+ */
+void flashrom_set_progress_callback(
+  struct flashrom_flashctx *const flashctx,
+  flashrom_progress_callback *progress_callback,
+  struct flashrom_progress *progress_state)
+__attribute__((deprecated("Use flashrom_set_progress_callback_v2 instead")));
+
+typedef void(flashrom_progress_callback_v2)(enum flashrom_progress_stage stage,
+						size_t current,
+						size_t total,
+						void *user_data);
+
 /**
  * @brief Set the progress callback function.
  *
@@ -90,12 +141,12 @@ typedef void(flashrom_progress_callback)(struct flashrom_flashctx *flashctx);
  * to indicate the progress has changed. This allows frontends to do whatever
  * they see fit with such values, e.g. update a progress bar in a GUI tool.
  *
- * @param progress_callback Pointer to the new progress callback function.
- * @param progress_state Pointer to progress state to include with the progress
- * callback.
+ * @param flashrom_progress_callback_v2 Pointer to the new progress callback function.
+ * @param user_data A pointer to a piece of data which is managed by progress caller
  */
-void flashrom_set_progress_callback(struct flashrom_flashctx *const flashctx,
-		flashrom_progress_callback *progress_callback, struct flashrom_progress *progress_state);
+void flashrom_set_progress_callback_v2(struct flashrom_flashctx *const flashctx,
+					flashrom_progress_callback_v2 *progress_callback,
+					void* user_data);
 
 /** @} */ /* end flashrom-general */
 
@@ -121,6 +172,7 @@ struct flashrom_flashchip_info {
 		enum flashrom_test_state read;
 		enum flashrom_test_state erase;
 		enum flashrom_test_state write;
+		enum flashrom_test_state wp;
 	} tested;
 };
 
@@ -143,6 +195,14 @@ struct flashrom_chipset_info {
  * @return flashrom version
  */
 const char *flashrom_version_info(void);
+/**
+ * @brief Returns list of supported programmers
+ * The last entry in the returned list is followed by a NULL.
+ *
+ * @return List of supported programmers, or NULL if an error occurred.
+ *  The pointer must be freed after using flashrom_data_free
+ */
+const char **flashrom_supported_programmers(void);
 /**
  * @brief Returns list of supported flash chips
  * @return List of supported flash chips, or NULL if an error occurred
@@ -203,6 +263,8 @@ int flashrom_programmer_shutdown(struct flashrom_programmer *flashprog);
  */
 
 /**
+ * @deprecated Use flashrom_flash_probe_v2 instead
+ *
  * @brief Probe for a flash chip.
  *
  * Probes for a flash chip and returns a flash context, that can be used
@@ -220,7 +282,47 @@ int flashrom_programmer_shutdown(struct flashrom_programmer *flashprog);
  *         2 if no chip was found,
  *         or 1 on any other error.
  */
-int flashrom_flash_probe(struct flashrom_flashctx **flashctx, const struct flashrom_programmer *flashprog, const char *chip_name);
+int flashrom_flash_probe(struct flashrom_flashctx **flashctx, const struct flashrom_programmer *flashprog, const char *chip_name)
+__attribute__((deprecated("Use flashrom_flash_probe_v2 instead")));
+
+/**
+ * @brief Probe for a flash chip, v2
+ *
+ * Probes for a flash chip and returns a flash context, that can be used
+ * later with flash chip and @ref flashrom-ops "image operations", if
+ * exactly one matching chip is found.
+ *
+ * Returns the list of names for all chips that matched, and the count of
+ * how many chips matched.
+ *
+ * Memory for the list of chips is dynamically allocated according to the
+ * number of chips found, and always needs to be freed with flashrom_data_free
+ * afterwards (including when no matches found or error happened).
+ *
+ * Note that if chip_name param is set, then probing happens only once, only
+ * for this one requested chip name. So the number of matches that can be
+ * returned in this case will be either 1 or 0 (and -1 for error).
+ *
+ * @param[out] flashctx Points to a struct flashrom_flashctx
+ *                      that will be set if exactly one chip is found. *flashctx
+ *                      has to be freed by the caller with @ref flashrom_flash_release.
+ * @param[out] all_matched_names pointer to an array containing the names of all chips
+ *				 that were successfully probed, terminated with a NULL pointer.
+ *				 If no chips are found, the returned array contains
+ *				 a single NULL element. Callers must free the array once unused
+ *				 by calling `flashrom_data_free`.
+ * @param[in] flashprog The flash programmer used to access the chip,
+ *			currently unused.
+ * @param[in] chip_name Name of a chip to probe for, or NULL to probe for
+ *                      all known chips.
+ * @return the number of matched chips (which can be 0) on success,
+ *         -1 if error happened during probing.
+ */
+int flashrom_flash_probe_v2(struct flashrom_flashctx *flashctx,
+				const char *** const all_matched_names,
+				const struct flashrom_programmer *flashprog,
+				const char *chip_name);
+
 /**
  * @brief Returns the size of the specified flash chip in bytes.
  *
@@ -250,6 +352,8 @@ enum flashrom_flag {
 	FLASHROM_FLAG_FORCE_BOARDMISMATCH,
 	FLASHROM_FLAG_VERIFY_AFTER_WRITE,
 	FLASHROM_FLAG_VERIFY_WHOLE_CHIP,
+	FLASHROM_FLAG_SKIP_UNREADABLE_REGIONS,
+	FLASHROM_FLAG_SKIP_UNWRITABLE_REGIONS,
 };
 
 /**
@@ -418,6 +522,16 @@ int flashrom_layout_add_region(struct flashrom_layout *layout, size_t start, siz
  */
 int flashrom_layout_include_region(struct flashrom_layout *layout, const char *name);
 /**
+ * @brief Mark given region as not included.
+ *
+ * @param layout The layout to alter.
+ * @param name   The name of the region to exclude.
+ *
+ * @return 0 on success,
+ *         1 if the given name can't be found.
+ */
+int flashrom_layout_exclude_region(struct flashrom_layout *layout, const char *name);
+/**
  * @brief Get given region's offset and length.
  *
  * @param[in]  layout The existing layout.
@@ -463,7 +577,8 @@ enum flashrom_wp_result {
 	FLASHROM_WP_ERR_VERIFY_FAILED = 5,
 	FLASHROM_WP_ERR_RANGE_UNSUPPORTED = 6,
 	FLASHROM_WP_ERR_MODE_UNSUPPORTED = 7,
-	FLASHROM_WP_ERR_RANGE_LIST_UNAVAILABLE = 8
+	FLASHROM_WP_ERR_RANGE_LIST_UNAVAILABLE = 8,
+	FLASHROM_WP_ERR_UNSUPPORTED_STATE = 9
 };
 
 enum flashrom_wp_mode {

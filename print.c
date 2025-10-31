@@ -103,6 +103,10 @@ static int print_supported_chips(void)
 		} while (1);
 
 		s = flashbuses_to_text(chip->bustype);
+		if (s == NULL) {
+			msg_gerr("Out of memory!\n");
+			return 1;
+		}
 		maxtypelen = max(maxtypelen, strlen(s));
 		free(s);
 	}
@@ -118,7 +122,7 @@ static int print_supported_chips(void)
 	for (i = strlen("Device"); i < maxchiplen; i++)
 		msg_ginfo(" ");
 
-	msg_ginfo("Test");
+	msg_ginfo("Test ");
 	for (i = 0; i < border; i++)
 		msg_ginfo(" ");
 	msg_ginfo("Known");
@@ -136,7 +140,7 @@ static int print_supported_chips(void)
 
 	for (i = 0; i < maxvendorlen + maxchiplen; i++)
 		msg_ginfo(" ");
-	msg_ginfo("OK  ");
+	msg_ginfo("OK   ");
 	for (i = 0; i < border; i++)
 		msg_ginfo(" ");
 	msg_ginfo("Broken");
@@ -147,7 +151,7 @@ static int print_supported_chips(void)
 		msg_ginfo(" ");
 	msg_gdbg("range [V]");
 	msg_ginfo("\n\n");
-	msg_ginfo("(P = PROBE, R = READ, E = ERASE, W = WRITE, - = N/A)\n\n");
+	msg_ginfo("(P = PROBE, R = READ, E = ERASE, W = WRITE, B = block-protect, - = N/A)\n\n");
 
 	for (chip = flashchips; chip->name != NULL; chip++) {
 		/* Don't print generic entries. */
@@ -238,6 +242,12 @@ static int print_supported_chips(void)
 			msg_ginfo("-");
 		else
 			msg_ginfo(" ");
+		if (chip->tested.wp == OK)
+			msg_ginfo("B");
+		else if (chip->tested.wp == NA)
+			msg_ginfo("-");
+		else
+			msg_ginfo(" ");
 		for (i = 0; i < border; i++)
 			msg_ginfo(" ");
 
@@ -257,6 +267,10 @@ static int print_supported_chips(void)
 			msg_ginfo("W");
 		else
 			msg_ginfo(" ");
+		if (chip->tested.wp == BAD)
+			msg_ginfo("B");
+		else
+			msg_ginfo(" ");
 		for (i = 0; i < border + 1; i++)
 			msg_ginfo(" ");
 
@@ -265,6 +279,12 @@ static int print_supported_chips(void)
 			msg_ginfo(" ");
 
 		s = flashbuses_to_text(chip->bustype);
+		if (s == NULL) {
+			msg_gerr("Out of memory!\n");
+			free(ven);
+			free(dev);
+			return 1;
+		}
 		msg_ginfo("%s", s);
 		for (i = strlen(s); i < maxtypelen; i++)
 			msg_ginfo(" ");
@@ -434,7 +454,8 @@ static void print_supported_boards_helper(const struct board_info *boards,
 }
 #endif
 
-static void print_supported_devs(const struct programmer_entry *const prog, const char *const type)
+static void print_supported_devs(const struct programmer_entry *const prog, const char *const type,
+				int* num_devs)
 {
 	const struct dev_entry *const devs = prog->devs.dev;
 	msg_ginfo("\nSupported %s devices for the %s programmer:\n", type, prog->name);
@@ -470,12 +491,17 @@ static void print_supported_devs(const struct programmer_entry *const prog, cons
 
 		msg_pinfo(" %04x:%04x  %s\n", devs[i].vendor_id, devs[i].device_id,
 			  test_state_to_text(devs[i].status));
+		if (devs[i].status == OK || devs[i].status == NT || devs[i].status == DEP)
+			*num_devs += 1;
 	}
 }
 
 int print_supported(void)
 {
 	unsigned int i;
+	int num_pci_devs = 0;
+	int num_usb_devs = 0;
+
 	if (print_supported_chips())
 		return 1;
 
@@ -494,10 +520,10 @@ int print_supported(void)
 		const struct programmer_entry *const prog = programmer_table[i];
 		switch (prog->type) {
 		case USB:
-			print_supported_devs(prog, "USB");
+			print_supported_devs(prog, "USB", &num_usb_devs);
 			break;
 		case PCI:
-			print_supported_devs(prog, "PCI");
+			print_supported_devs(prog, "PCI", &num_pci_devs);
 			break;
 		case OTHER:
 			if (prog->devs.note != NULL) {
@@ -511,6 +537,10 @@ int print_supported(void)
 			break;
 		}
 	}
+
+	msg_ginfo("\nSupported USB devices, total %d\nSupported PCI devices, total %d\n",
+			num_usb_devs, num_pci_devs);
+
 	return 0;
 }
 

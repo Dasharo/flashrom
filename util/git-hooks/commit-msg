@@ -28,7 +28,7 @@ unset GREP_OPTIONS
 CHANGE_ID_AFTER="Bug|Depends-On|Issue|Test|Feature|Fixes|Fixed|Staging-ID"
 MSG="$1"
 
-DEV_GUIDELINES_URL="https://www.flashrom.org/Development_Guidelines"
+DEV_GUIDELINES_URL="https://flashrom.org/dev_guide/development_guide.html"
 
 # Check for, and add if missing, a unique Change-Id
 #
@@ -196,6 +196,7 @@ _gen_ChangeId() {
 
 test_signoff() {
 	if ! grep -qi '^[[:space:]]*\+Signed-off-by:' "$MSG"; then
+		cat "$MSG"
 		printf "\nError: No Signed-off-by line in the commit message.\n"
 		printf "See: ${DEV_GUIDELINES_URL}\n"
 		exit 1
@@ -206,6 +207,7 @@ test_signoff() {
 test_duplicate_signoffs_acks() {
 	test "" = "$(grep -i '^(Signed-off-by|Acked-by): ' "$MSG" |
 		 sort | uniq -c | sed -e '/^[[:space:]]*1[[:space:]]/d')" || {
+		cat "$MSG"
 		echo "Duplicate Signed-off-by or Acked-by lines." >&2
 		exit 1
 	}

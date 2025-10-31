@@ -23,12 +23,18 @@ jobs:
           sudo apt-get install -y git build-essential debhelper pkg-config libpci-dev libusb-1.0-0-dev libftdi1-dev meson
 
       - name: Build Flashrom
-        run: make
+        run: |
+          meson setup builddir
+          meson compile -C builddir
+
+      - name: Test Flashrom
+        run: |
+          meson test -C builddir
 
       - name: Save Flashrom binary as artifact
         run: |
           mkdir artifacts
-          mv flashrom artifacts/
+          mv builddir/flashrom artifacts/
         continue-on-error: true  # Allow workflow to continue even if 'flashrom' doesn't exist
 
       - name: Upload artifact
